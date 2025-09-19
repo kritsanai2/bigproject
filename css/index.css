@@ -1,0 +1,98 @@
+/* ฟอนต์และพื้นหลัง */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Sarabun', sans-serif;
+    background-color: #f5faff; /* ฟ้าจางสะอาดตา */
+    color: #333;
+}
+
+/* ส่วนหัว */
+header {
+    background-color: #007bff; /* น้ำเงินสด */
+    color: white;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+header h1 {
+    font-size: 24px;
+    margin: 0;
+}
+
+.logo {
+    height: 60px;
+    border-radius: 50%;
+    margin-right: 20px;
+}
+
+.logout-btn {
+    background-color: #dc3545; /* แดง */
+    color: white;
+    padding: 10px 16px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+}
+.logout-btn:hover {
+    background-color: #c82333;
+}
+
+/* เมนูนำทาง */
+nav {
+    background-color: #004b88; /* น้ำเงินเข้ม */
+}
+
+nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+nav li {
+    margin: 0;
+}
+
+nav a {
+    display: block;
+    padding: 14px 20px;
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
+nav a:hover {
+    background-color: #006fd6; /* ฟ้าอ่อนตอน hover */
+}
+
+/* ส่วนต้อนรับ */
+main {
+    padding: 40px 20px;
+    text-align: center;
+    background: linear-gradient(to bottom, #ffffff, #e6f0ff);
+}
+
+.welcome h2 {
+    color: #007bff;
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.welcome p {
+    font-size: 18px;
+    color: #333;
+}
+
+/* ส่วนท้าย */
+footer {
+    text-align: center;
+    padding: 15px;
+    background-color: #007bff;
+    color: white;
+    font-size: 14px;
+}

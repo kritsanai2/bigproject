@@ -1,0 +1,173 @@
+/* ==========================
+   Global Styles
+========================== */
+body {
+    font-family: 'Sarabun', sans-serif;
+    margin: 0;
+    background: #f4f4f9;
+}
+
+/* ==========================
+   Sidebar
+========================== */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 220px;
+    height: 100%;
+    background: #1f2937;
+    color: #fff;
+    padding-top: 20px;
+    transition: transform 0.3s ease;
+    overflow: auto;
+    z-index: 1000;
+}
+
+.sidebar.closed {
+    transform: translateX(-100%);
+}
+
+.sidebar img.logo {
+    display: block;
+    width: 100px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+}
+
+.sidebar h2 {
+    text-align: center;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+.sidebar a {
+    display: block;
+    padding: 10px 20px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background: #374151;
+    border-radius: 6px;
+}
+
+/* ==========================
+   Toggle Button
+========================== */
+.toggle-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #1f2937;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    z-index: 2000;
+}
+
+/* ==========================
+   Main Content
+========================== */
+.main {
+    margin-left: 220px;
+    padding: 20px;
+    transition: margin-left 0.3s ease;
+}
+
+.sidebar.closed ~ .main {
+    margin-left: 0;
+}
+
+h1 {
+    color: #111827;
+}
+
+/* ==========================
+   Filter Section
+========================== */
+.filter {
+    background: #fff;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.filter select,
+.filter button {
+    padding: 5px 10px;
+    margin-right: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+.filter button {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+.filter button:hover {
+    background: #1d4ed8;
+}
+
+/* ==========================
+   Table Styles
+========================== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+th,
+td {
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+th {
+    background: #2563eb;
+    color: #fff;
+}
+
+tr:hover {
+    background: #f3f4f6;
+}
+
+/* ==========================
+   Export Buttons
+========================== */
+.btn-export {
+    display: inline-block;
+    margin: 5px;
+    padding: 7px 12px;
+    text-decoration: none;
+    border-radius: 5px;
+    color: #fff;
+}
+
+.btn-export.pdf {
+    background: #dc2626;
+}
+
+.btn-export.excel {
+    background: #16a34a;
+}

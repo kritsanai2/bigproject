@@ -1,0 +1,157 @@
+body {
+    font-family: 'Sarabun', sans-serif;
+    background-color: #eaf6f6;
+    color: #495057;
+    margin: 0;
+    padding: 20px;
+}
+.stock-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    padding: 30px;
+}
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+header h2 {
+    color: #001f3f;
+}
+header .home-button {
+    background-color: #008080;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 600;
+}
+header .home-button:hover {
+    background-color: #005f73;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th {
+    background-color: #00b894;
+    color: white;
+    padding: 12px;
+    text-align: center;
+}
+
+td {
+    background-color: #dff9fb;
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #c8d6e5;
+}
+
+tr:hover td {
+    background-color: #74b9ff;
+    color: #fff;
+    transform: translateY(-2px);
+    transition: 0.2s;
+}
+/* ปุ่ม */
+.action-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    margin: 3px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: 0.3s;
+    color: #fff;
+    text-decoration: none;
+}
+.add-btn { 
+    background: #00b894; 
+}
+.add-btn:hover { 
+    background: #0893b6ff; 
+}
+.edit-btn { 
+    background: #00b894; 
+    color:#fff; 
+}
+.edit-btn:hover { 
+    background: #00efefff; }
+.delete-btn { 
+    background: #e53935; 
+}
+.delete-btn:hover { 
+    background: #c62828; 
+}
+.back-btn { 
+    background: #00b894; 
+    color: #fff; 
+    text-decoration: none; 
+    display:inline-block; 
+    line-height:32px; 
+}
+.back-btn:hover {
+    background: 
+    #0d47a1; 
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 450px;
+    position: relative;
+    animation: fadeInScale 0.4s ease-out;
+}
+.close-btn {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    font-size: 1.2em;
+    cursor: pointer;
+    color: #888;
+}
+.close-btn:hover { color: #000; }
+.modal-content h3 {
+    text-align:center;
+    margin-bottom: 20px;
+    color:#003366;
+}
+.modal input, .modal select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+}
+.modal input:focus, .modal select:focus {
+    border-color: #008080;
+    outline: none;
+}
+/* animation */
+@keyframes fadeInScale {
+    from { opacity:0; transform: scale(0.95);}
+    to { opacity:1; transform: scale(1);}
+}

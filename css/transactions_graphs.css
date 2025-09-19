@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+
+/* ===================== Root Variables ===================== */
+:root {
+  --primary-color: #3498db;
+  --secondary-color: #2ecc71;
+  --accent-color: #e74c3c;
+  --bg-color: #f0f8ff;
+  --card-bg-color: #ffffff;
+  --text-color: #333;
+  --light-text-color: #777;
+  --border-color: #dcdcdc;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ===================== Reset ===================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: 'Sarabun', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  font-size: 16px;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===================== Sidebar ===================== */
+.sidebar {
+  width: 250px;
+  background-color: var(--primary-color);
+  color: white;
+  padding: 2rem 1.5rem;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.3s ease-in-out;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+}
+
+.sidebar.hidden {
+  transform: translateX(-100%);
+}
+
+.logo {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.3);
+  object-fit: cover;
+  margin-bottom: 1.5rem;
+}
+
+.sidebar h2 {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sidebar a {
+  color: white;
+  text-decoration: none;
+  font-size: 1.1rem;
+  padding: 0.8rem 1.2rem;
+  border-radius: 8px;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.5rem;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar a:hover {
+  background-color: rgba(255,255,255,0.2);
+  transform: translateX(5px);
+}
+
+.sidebar a.active {
+  background-color: rgba(255,255,255,0.3);
+  font-weight: 500;
+}
+
+/* ===================== Toggle Button ===================== */
+.toggle-btn {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 101;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* ===================== Main Content ===================== */
+.content {
+  margin-left: 250px;
+  padding: 2rem;
+  flex-grow: 1;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+.content.full-width {
+  margin-left: 0;
+}
+
+.content h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+/* ===================== Filter Form ===================== */
+.filter {
+  background: var(--card-bg-color);
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filter select, .filter button {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.filter button {
+  border: none;
+  background-color: var(--primary-color);
+  color: white;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.filter button:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+}
+
+/* ===================== Export Buttons ===================== */
+.btn-export {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  margin: 0.3rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: transform 0.2s ease;
+  color: white;
+}
+
+.btn-export.pdf { background-color: #e74c3c; }
+.btn-export.pdf:hover { background-color: #c0392b; transform: translateY(-2px); }
+
+.btn-export.excel { background-color: #2ecc71; }
+.btn-export.excel:hover { background-color: #27ae60; transform: translateY(-2px); }
+
+/* ===================== Table ===================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+thead {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+th, td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+th {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+tbody tr:hover {
+  background-color: #f1faff;
+}
+
+/* ===================== Responsive ===================== */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    transform: translateX(-100%);
+    height: auto;
+  }
+
+  .sidebar.show {
+    transform: translateX(0);
+  }
+
+  .content {
+    margin-left: 0;
+    padding-top: 70px;
+  }
+
+  .filter {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

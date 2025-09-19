@@ -1,0 +1,108 @@
+/* ==========================
+   Global Styles
+========================== */
+body {
+    font-family: 'Kanit', sans-serif;
+    margin: 0;
+    background: #f4f4f9;
+}
+
+/* ==========================
+   Sidebar
+========================== */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 220px;
+    height: 100%;
+    background: #1f2937;
+    color: #fff;
+    padding-top: 20px;
+    overflow: auto;
+    transition: transform 0.3s;
+}
+
+.sidebar.closed {
+    transform: translateX(-100%);
+}
+
+.sidebar img.logo {
+    display: block;
+    width: 100px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+}
+
+.sidebar h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.sidebar a {
+    display: block;
+    padding: 10px 20px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+    background: #374151;
+    border-radius: 6px;
+}
+
+/* ==========================
+   Toggle Button
+========================== */
+.toggle-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: #1f2937;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2000;
+}
+
+/* ==========================
+   Main Content
+========================== */
+.main {
+    margin-left: 220px;
+    padding: 20px;
+    transition: margin-left 0.3s;
+}
+
+.sidebar.closed ~ .main {
+    margin-left: 0;
+}
+
+/* ==========================
+   Filter Section
+========================== */
+.filter {
+    background: #fff;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* ==========================
+   Canvas Styles
+========================== */
+canvas {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}

@@ -1,0 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+
+body {
+    font-family: 'Sarabun', sans-serif;
+    background: #eaf6f6;
+    margin: 0;
+    padding: 40px 20px;
+    color: #495057;
+}
+
+/* Table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th {
+    background-color: #00b894;
+    color: white;
+    padding: 12px;
+    text-align: center;
+}
+
+td {
+    background-color: #dff9fb;
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #c8d6e5;
+}
+
+tr:hover td {
+    background-color: #74b9ff;
+    color: #fff;
+    transform: translateY(-2px);
+    transition: 0.2s;
+}
+
+/* Status Buttons */
+button.status-btn {
+    padding: 6px 14px;
+    margin: 2px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: 0.3s;
+}
+
+.present { background: #2ecc71; }
+.late { background: #f1c40f; }
+.absent { background: #e74c3c; }
+.leave { background: #8e44ad; }
+
+button.status-btn.selected {
+    outline: 3px solid #333; /* กรอบชัดเจน */
+    transform: scale(1.05);
+}
+
+button.status-btn:hover {
+    filter: brightness(1.1);
+    transform: scale(1.05);
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid #005f73;
+    padding-bottom: 25px;
+    margin-bottom: 30px;
+}
+
+.logo {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #fca311;
+}
+
+header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    color: #001f3f;
+    margin: 0;
+    font-weight: 700;
+}
+
+/* Home Button */
+.home-button {
+    text-decoration: none;
+    background-color: #008080;
+    color: #fff;
+    padding: 12px 25px;
+    border-radius: 30px;
+    font-weight: 600;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.home-button:hover {
+    background-color: #005f73;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Save Button */
+.save-btn {
+    margin-top: 20px;
+    background-color: #28a745;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.save-btn:hover {
+    background-color: #218838;
+    transform: translateY(-2px);
+}

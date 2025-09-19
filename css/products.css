@@ -1,0 +1,271 @@
+ /* Body & Container */
+body {
+    font-family: 'Sarabun', sans-serif;
+    background-color: #eaf6f6;
+    margin: 0;
+    padding: 40px 20px;
+    color: #495057;
+}
+
+.stock-container {
+    max-width: 1300px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+    padding: 40px;   /* เดิม 30px */
+}
+
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid #005f73;
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+header .logo {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #fca311;
+}
+
+header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    color: #001f3f;
+    margin: 0;
+}
+
+.home-button {
+    text-decoration: none;
+    background-color: #008080;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+.home-button:hover {
+    background-color: #005f73;
+    transform: translateY(-2px);
+}
+
+/* Search Row */
+.search-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.search-box {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+}
+
+.search-box:focus {
+    border-color: #008080;
+    outline: none;
+}
+
+.search-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    background-color: #00b894;
+    color: #fff;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.search-btn:hover {
+    background-color: #005073;
+}
+
+/* Table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th {
+    background-color: #00b894;
+    color: white;
+    padding: 12px;
+    text-align: center;
+}
+
+td {
+    background-color: #dff9fb;
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid #c8d6e5;
+}
+
+tr:hover td {
+    background-color: #74b9ff;
+    color: #fff;
+    transform: translateY(-2px);
+    transition: 0.2s;
+}
+
+/* ปุ่มลบ / แก้ไข ให้เหมือนลูกค้า */
+button.delete-btn,
+button.edit-btn {
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* ปุ่มลบ */
+button.delete-btn {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+button.delete-btn:hover {
+    background-color: #c82333;
+}
+
+/* ปุ่มแก้ไข */
+button.edit-btn {
+    background-color: #ffc107;
+    color: #333;
+}
+
+button.edit-btn:hover {
+    background-color: #e0a800;
+}
+
+
+/* Modal */
+/* --- Modal Styles --- */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 550px;
+    position: relative;
+    animation: fadeInScale 0.4s ease-out;
+}
+
+.close-btn {
+    color: #888;
+    position: absolute;
+    top: 15px;
+    right: 30px;
+    font-size: 30px;
+    font-weight: 30;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+    color: #000;
+}
+
+.modal h3 {
+    font-size: 2rem;
+    color: #003366;
+    margin-top: 0;
+    border-bottom: 2px solid #e0e6ed;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.modal form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal label {
+    font-weight: 600;
+    color: #212529;
+}
+
+.modal input,
+.modal select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.modal input:focus,
+.modal select:focus {
+    border-color: #008080;
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 128, 128, 0.4);
+}
+
+.modal button {
+    background-color: #1a759f;
+    color: #fff;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    margin-top: 10px;
+}
+
+.modal button:hover {
+    background-color: #005073;
+    transform: translateY(-2px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .search-row {
+        flex-direction: column;
+    }
+    .search-btn {
+        width: 100%;
+    }
+    header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    .home-button {
+        margin-top: 10px;
+    }
+}
