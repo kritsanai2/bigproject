@@ -324,9 +324,9 @@ h2 {
 
 <div class="sidebar" id="sidebar">
   <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-  <h2>ข้อมูลโรงงาน</h2>
+  <h2>รายงานกราฟเงินเดือน</h2>
   <a href="employee_dashboard.php"><i class="fas fa-users"></i>&nbsp; <span>รายการเช็คชื่อ</span></a>
-  <a href="employee_graphs.php" class="active"><i class="fas fa-chart-pie"></i>&nbsp; <span>รายงานรายรับ-รายจ่าย</span></a>
+  <a href="employee_graphs.php" class="active"><i class="fas fa-chart-pie"></i>&nbsp; <span>รายงานกราฟเงินเดือน</span></a>
 </div>
 
 <div class="main" id="main">

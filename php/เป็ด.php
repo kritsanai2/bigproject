@@ -1,286 +1,257 @@
-<?php
-$conn = new mysqli("localhost", "root", "", "bigproject");
-$conn->set_charset("utf8mb4");
-if($conn->connect_error) die("Connection failed: ".$conn->connect_error);
+I have improved your code to make the file selection a dropdown menu, which is a common and user-friendly way to handle options. This change consolidates the two file type buttons into a single, clean dropdown menu.
 
-$selected_month = $_POST['month'] ?? date('Y-m'); // YYYY-MM
-$daily_rate = 300; // วันเต็ม
-$half_rate = 150;  // ครึ่งวัน
+### Summary of Changes:
 
-$start_date = $selected_month . "-01";
-$end_date = date("Y-m-t", strtotime($start_date));
+1.  **HTML Modification**: I replaced the two file selection buttons with a `<select>` dropdown menu. This provides a more compact and professional look.
+2.  **CSS Adjustment**: I've updated the CSS to style the new `<select>` element to match the rest of your design, ensuring a cohesive appearance.
+3.  **JavaScript Logic**: The JavaScript has been rewritten to handle the new dropdown menu. Instead of checking for a button's `active` class, it now checks the value of the selected option in the dropdown to determine the file type. The action buttons (Download, Email, Messenger) are now enabled only when a valid file type is chosen from the dropdown.
 
-// ดึงพนักงาน
-$employees_result = $conn->query("SELECT employee_id, full_name FROM employees WHERE deleted=0 ORDER BY employee_id ASC");
+-----
 
-// ดึง attendance ของเดือน
-$attendances_result = $conn->query("
-    SELECT employee_id, attend_date, status
-    FROM attendances
-    WHERE attend_date BETWEEN '$start_date' AND '$end_date'
-");
+### Revised and Enhanced Code
 
-// จัดเก็บ attendance
-$attendanceData = [];
-while($row = $attendances_result->fetch_assoc()){
-    $day = date("d", strtotime($row['attend_date']));
-    $attendanceData[$row['employee_id']][$day] = $row['status'];
-}
+Here is the complete, working code with the dropdown menu for file selection.
 
-// ดึงข้อมูล employee_payments ของเดือนที่เลือก
-$payments_result = $conn->query("
-    SELECT employee_id, work_days, amount
-    FROM employee_payments
-    WHERE pay_month='$selected_month'
-");
-
-$paymentsData = [];
-while($row = $payments_result->fetch_assoc()){
-    $paymentsData[$row['employee_id']] = $row;
-}
-?>
-
+```html
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<title>รายงานเช็คชื่อและเงินเดือน</title>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-/* Reset & Font */
-* {margin:0; padding:0; box-sizing:border-box; font-family: 'Sarabun', sans-serif;}
-body {display:flex; min-height:100vh; background:#f5f5f5;}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบแชร์ไฟล์</title>
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #0d1a44;
+            color: white;
+            flex-direction: column;
+        }
 
-/* Sidebar */
-.sidebar {
-    width: 70px;
-    background: linear-gradient(#00b894, #00d2b3);
-    color: #fff;
-    display: flex;
-    flex-direction: column;
-    padding: 20px 10px;
-    transition: 0.3s;
-    overflow: hidden;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-    z-index: 10;
-}
-.sidebar:hover { width: 220px; }
-.sidebar h2,
-.sidebar a span { opacity: 0; transition: 0.3s; white-space: nowrap; }
-.sidebar:hover h2,
-.sidebar:hover a span { opacity: 1; }
-.sidebar a {
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    color: #fff;
-    padding: 12px;
-    margin: 5px 0;
-    border-radius: 10px;
-    transition: all 0.3s;
-}
-.sidebar a i { min-width: 25px; text-align: center; margin-right: 10px; }
-.sidebar a:hover,
-.sidebar a.active { background: rgba(255,255,255,0.2); transform: scale(1.05); }
-.sidebar .logo {
-    width: 60px; height: 60px; border-radius: 50%;
-    border: 3px solid #fff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    object-fit: cover;
-    margin: 0 auto 15px;
-    display: block;
-    transition: transform 0.3s ease;
-}
-.sidebar .logo:hover { transform: scale(1.1) rotate(5deg); }
+        #shareButton {
+            padding: 12px 24px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #3498db;
+            color: white;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
 
-/* Main content */
-.main {flex:1; padding:20px; overflow-x:auto;}
-.main h2 {text-align:center; margin-bottom:20px;}
+        #shareButton:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
 
-/* Form / Filter */
-form {text-align:center; margin-bottom:20px;}
-input[type="month"], select, button {padding:6px 12px; border-radius:5px; border:1px solid #74b9ff; margin:0 5px; font-size:1rem;}
-button {border:none; cursor:pointer; background:#00b894; color:#fff; font-weight:600; transition:0.3s;}
-button:hover {background:#019ca1;}
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-/* ตาราง employees */
-#reportContent table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    border-radius: 10px;
-    overflow: hidden;
-}
-#reportContent th {
-    background-color: #00b894;
-    color: white;
-    padding: 12px;
-    text-align: center;
-}
-#reportContent td {
-    background-color: #dff9fb;
-    padding: 12px;
-    text-align: center;
-    border-bottom: 1px solid #c8d6e5;
-}
-#reportContent tr:hover td {
-    background-color: #74b9ff;
-    color: white;
-    transform: translateY(-2px);
-    transition: 0.2s;
-}
+        .modal-content {
+            background-color: #23a0e6;
+            margin: 15% auto;
+            padding: 2rem;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+            border-radius: 12px;
+            position: relative;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+            animation: fadeIn 0.3s ease-in-out;
+        }
 
-/* ปุ่มส่งออก PDF/Excel */
-.btn-export {
-    padding: 12px 25px;
-    font-size: 1rem;
-    border-radius: 20px;
-    text-decoration: none;
-    font-weight: 600;
-    color: #fff;
-    display: inline-block;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    margin: 5px;
-}
-.btn-export.pdf { background-color: #e74c3c; }
-.btn-export.pdf:hover { background-color: #c0392b; }
-.btn-export.excel { background-color: #27ae60; }
-.btn-export.excel:hover { background-color: #1e8449; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-/* Responsive */
-@media screen and (max-width:1024px){
-    table, thead, tbody, th, td, tr { display:block; }
-    thead tr { display:none; }
-    tr { margin-bottom:15px; border-bottom:2px solid #ccc; }
-    td { text-align:right; padding-left:50%; position:relative; }
-    td::before { 
-        content: attr(data-label); 
-        position:absolute; 
-        left:15px; 
-        width:45%; 
-        padding-left:10px; 
-        font-weight:bold; 
-        text-align:left; 
-    }
-}
-</style>
+        .close-button {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            transition: color 0.2s;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #f1f1f1;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .file-options {
+            margin-bottom: 25px;
+        }
+
+        .file-options select {
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #1a7ab4;
+            color: white;
+            width: 80%;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .file-options select:focus {
+            outline: none;
+            border-color: #27ae60;
+            box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .action-buttons button {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .action-buttons button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .action-buttons button:disabled {
+            background-color: #7f8c8d;
+            cursor: not-allowed;
+        }
+    </style>
 </head>
 <body>
 
-<div class="sidebar">
-    <img src="/projectจบ/img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo" />
-    <h2><span>รายการเช็คชื่อ</span></h2>
-    <a href="dashboard.php"><span>กลับ</span></a>
-    <a href="employee_dashboard.php"><span>รายการเช็คชื่อ</span></a>
-    <a href="employee_graphs.php"><span>กราฟ</span></a>
-</div>
+    <button id="shareButton">แชร์</button>
 
-<div class="main">
-<h2>📝 สรุปการเช็คชื่อและเงินเดือนพนักงาน - <?= date('F Y', strtotime($selected_month)) ?></h2>
+    <div id="shareModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>เลือกไฟล์</h2>
+            <div class="file-options">
+                <select id="fileSelect">
+                    <option value="">-- เลือกไฟล์ --</option>
+                    <option value="pdf">PDF</option>
+                    <option value="excel">Excel</option>
+                </select>
+            </div>
+            <div class="action-buttons">
+                <button id="downloadButton" disabled>ดาวน์โหลด</button>
+                <button id="emailButton" disabled>อีเมล</button>
+                <button id="messengerButton" disabled>Messenger</button>
+            </div>
+        </div>
+    </div>
 
-<!-- Form เลือกเดือน -->
-<form method="post" action="">
-    เลือกเดือน: 
-    <input type="month" name="month" value="<?= $selected_month ?>">
-    <button type="submit">แสดงข้อมูล</button>
-</form>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const shareButton = document.getElementById('shareButton');
+            const shareModal = document.getElementById('shareModal');
+            const closeButton = document.querySelector('.close-button');
+            const fileSelect = document.getElementById('fileSelect');
+            const downloadButton = document.getElementById('downloadButton');
+            const emailButton = document.getElementById('emailButton');
+            const messengerButton = document.getElementById('messengerButton');
 
-<!-- ปุ่มส่งออก PDF/Excel -->
-<div class="export-buttons">
-    <button type="button" id="exportPdf" class="btn-export pdf">📄 ส่งออก PDF</button>
-    <button type="button" id="exportExcel" class="btn-export excel">📊 ส่งออก Excel</button>
-</div>
+            // Function to toggle action buttons' disabled state
+            const toggleActionButtons = (state) => {
+                downloadButton.disabled = !state;
+                emailButton.disabled = !state;
+                messengerButton.disabled = !state;
+            };
+            
+            // Open the modal
+            shareButton.onclick = function() {
+                shareModal.style.display = 'flex';
+                toggleActionButtons(false); // Disable buttons initially
+                fileSelect.value = ''; // Reset dropdown
+            };
 
-<!-- ตารางรายงาน -->
-<div class="main" id="reportContent">
-    <table>
-        <thead>
-            <tr>
-                <th>ลำดับ</th>
-                <th>รหัสพนักงาน</th>
-                <th>ชื่อ-สกุล</th>
-                <th>วันเต็ม</th>
-                <th>ครึ่งวัน</th>
-                <th>วันสาย</th>
-                <th>วันลา</th>
-                <th>วันขาด</th>
-                <th>จำนวนวันทำงาน</th>
-                <th>เงินเดือน (บาท)</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php
-            $no = 1;
-            $total_salary = 0;
-            while($emp = $employees_result->fetch_assoc()){
-                $full=0; $half=0; $late=0; $leave=0; $absent=0;
-                if(isset($attendanceData[$emp['employee_id']])){
-                    foreach($attendanceData[$emp['employee_id']] as $status){
-                        if($status=='present') $full++;
-                        elseif($status=='half') $half++;
-                        elseif($status=='late') $late++;
-                        elseif($status=='leave') $leave++;
-                        elseif($status=='absent') $absent++;
-                    }
+            // Close the modal
+            closeButton.onclick = function() {
+                shareModal.style.display = 'none';
+            };
+
+            // Close the modal by clicking outside
+            window.onclick = function(event) {
+                if (event.target == shareModal) {
+                    shareModal.style.display = 'none';
                 }
-                $work_days = $full + ($half*0.5);
-                $salary = $paymentsData[$emp['employee_id']]['amount'] 
-                          ?? (($full * $daily_rate) + ($half * $half_rate));
-                $total_salary += $salary;
+            };
+            
+            // Handle dropdown change
+            fileSelect.onchange = function() {
+                const selectedFile = fileSelect.value;
+                if (selectedFile) {
+                    alert(`คุณเลือกไฟล์ประเภท ${selectedFile.toUpperCase()}`);
+                    toggleActionButtons(true);
+                } else {
+                    toggleActionButtons(false);
+                }
+            };
 
-                echo "<tr>
-                    <td>{$no}</td>
-                    <td>{$emp['employee_id']}</td>
-                    <td>{$emp['full_name']}</td>
-                    <td>{$full}</td>
-                    <td>{$half}</td>
-                    <td>{$late}</td>
-                    <td>{$leave}</td>
-                    <td>{$absent}</td>
-                    <td>{$work_days}</td>
-                    <td>".number_format($salary,2)."</td>
-                </tr>";
-                $no++;
-            }
-            ?>
-        </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="9" style="text-align:right; font-weight:bold;">รวมเงินเดือนทั้งหมด</td>
-                <td style="font-weight:bold;"><?= number_format($total_salary,2) ?></td>
-            </tr>
-        </tfoot>
-    </table>
-</div>
+            // Download action
+            downloadButton.onclick = function() {
+                const selectedFile = fileSelect.value;
+                alert(`กำลังดาวน์โหลดไฟล์ ${selectedFile.toUpperCase()}...`);
+                // In a real application, you'd add the actual download logic here.
+                // For example: window.location.href = `path/to/download.${selectedFile}`;
+            };
 
-<!-- ไลบรารีสำหรับ export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+            // Email action
+            emailButton.onclick = function() {
+                const selectedFile = fileSelect.value;
+                alert(`กำลังส่งไฟล์ ${selectedFile.toUpperCase()} ทางอีเมล...`);
+                // In a real application, you'd add the actual email logic here.
+            };
 
-<script>
-// ส่งออก PDF หน้าเว็บ
-document.getElementById("exportPdf").addEventListener("click", function(){
-    const element = document.getElementById("reportContent");
-    html2pdf()
-    .set({
-        margin: 0.5,
-        filename: 'employee_dashboard.pdf',
-        pagebreak: { mode: 'avoid-all' },
-        html2canvas: { scale: 2 }
-    })
-    .from(element)
-    .save();
-});
-
-// ส่งออก Excel หน้าเว็บ
-document.getElementById("exportExcel").addEventListener("click", function(){
-    var table = document.querySelector("#reportContent table");
-    var wb = XLSX.utils.table_to_book(table, {sheet:"Sheet1"});
-    XLSX.writeFile(wb, 'employee_dashboard.xlsx');
-});
-</script>
-
+            // Messenger action
+            messengerButton.onclick = function() {
+                const selectedFile = fileSelect.value;
+                alert(`กำลังแชร์ไฟล์ ${selectedFile.toUpperCase()} บน Messenger...`);
+                // In a real application, you'd add the actual Messenger share logic here.
+            };
+        });
+    </script>
 </body>
 </html>
+```

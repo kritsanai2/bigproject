@@ -365,8 +365,8 @@ h2 {
 <div class="sidebar" id="sidebar">
   <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
   <h2>ข้อมูลรายรับ-รายจ่าย</h2>
-  <a href="transactions_dashboard.php"><i class="fas fa-list"></i>&nbsp; <span>รายงานธุรกรรม</span></a>
-  <a href="transactions_graphs.php" class="active"><i class="fas fa-chart-pie"></i>&nbsp; <span>กราฟรายงาน</span></a>
+  <a href="transactions_dashboard.php"><i class="fas fa-list"></i>&nbsp; <span>รายงานรายรับ-รายจ่าย</span></a>
+  <a href="transactions_graphs.php" class="active"><i class="fas fa-chart-pie"></i>&nbsp; <span>กราฟรายงานรายรับ-รายจ่าย</span></a>
 </div>
 
 <div class="main" id="main">

@@ -332,14 +332,14 @@ tbody tr:hover {
 
 <div class="sidebar" id="sidebar">
     <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-    <h2>ข้อมูลโรงงาน</h2>
+    <h2>ข้อมูลการขาย</h2>
     <a href="dashboard.php"><i class="fas fa-home"></i>&nbsp; <span>กลับ</span></a>
     <a href="orders_dashboard.php" class="active"><i class="fas fa-receipt"></i>&nbsp; <span>รายงานคำสั่งซื้อ</span></a>
     <a href="orders_graphs.php"><i class="fas fa-chart-pie"></i>&nbsp; <span>รายงานการขายสินค้า</span></a>
 </div>
 
 <div class="main" id="main">
-    <h1><i class="fas fa-receipt"></i>&nbsp; รายงานคำสั่งซื้อ</h1>
+    <h1><i class="fas fa-receipt"></i>&nbsp; รายงานข้อมูลการขาย</h1>
 
     <!-- ฟิลเตอร์เลือกเดือนและปี -->
     <div class="filter">

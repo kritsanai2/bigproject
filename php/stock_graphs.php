@@ -2,86 +2,76 @@
 session_start();
 require_once "db.php";  // เชื่อมต่อฐานข้อมูลจากไฟล์เดียว
 
+// ฟังก์ชันแปลงเลขเดือนเป็นชื่อเดือนภาษาไทย
 function thai_month($month){
-    $months = [1=>'มกราคม',2=>'กุมภาพันธ์',3=>'มีนาคม',4=>'เมษายน',
-                5=>'พฤษภาคม',6=>'มิถุนายน',7=>'กรกฎาคม',8=>'สิงหาคม',
-                9=>'กันยายน',10=>'ตุลาคม',11=>'พฤศจิกายน',12=>'ธันวาคม'];
+    $months = [
+        1=>'มกราคม',2=>'กุมภาพันธ์',3=>'มีนาคม',4=>'เมษายน',
+        5=>'พฤษภาคม',6=>'มิถุนายน',7=>'กรกฎาคม',8=>'สิงหาคม',
+        9=>'กันยายน',10=>'ตุลาคม',11=>'พฤศจิกายน',12=>'ธันวาคม'
+    ];
     return $months[$month] ?? $month;
 }
 
-// ===================== รับค่าจาก filter =====================
-$day_type   = $_GET['day_type'] ?? '';
-$day_month  = $_GET['day_month'] ?? date('n');
-$day_year   = $_GET['day_year'] ?? date('Y');
+// ===================== Filter =====================
+$selected_year = $_GET['year'] ?? date('Y');
 
-$month_type = $_GET['month_type'] ?? '';
-$month_year = $_GET['month_year'] ?? date('Y');
-
-$year_type  = $_GET['year_type'] ?? '';
-
-// ===================== กราฟรายวัน =====================
-$days_in_month = cal_days_in_month(CAL_GREGORIAN, $day_month, $day_year);
-$dailyData = [];
-for($d=1;$d<=$days_in_month;$d++){
-    $dailyData[$d] = ['in'=>0,'out'=>0];
-}
-
-$sql = "SELECT DAY(stock_date) AS d,
-                SUM(CASE WHEN stock_type='import' THEN quantity ELSE 0 END) AS total_in,
-                SUM(CASE WHEN stock_type='remove' THEN quantity ELSE 0 END) AS total_out
-        FROM stock
-        WHERE YEAR(stock_date)=$day_year AND MONTH(stock_date)=$day_month AND deleted=0";
-if($day_type) $sql .= " AND stock_type='".$conn->real_escape_string($day_type)."'";
-$sql .= " GROUP BY DAY(stock_date)";
-$res = $conn->query($sql);
-while($r = $res->fetch_assoc()){
-    $dailyData[(int)$r['d']]['in']   += (float)$r['total_in'];
-    $dailyData[(int)$r['d']]['out'] += (float)$r['total_out'];
-}
-
-// ===================== กราฟรายเดือน =====================
+// ===================== ข้อมูลรายเดือนรวม =====================
 $monthlyData = [];
+$labelsMonth = [];
 for($m=1;$m<=12;$m++){
-    $monthlyData[$m] = ['in'=>0,'out'=>0];
+    $monthlyData[$m] = 0;
+    $labelsMonth[$m] = thai_month($m);
 }
 
-$sql = "SELECT MONTH(stock_date) AS m,
-                SUM(CASE WHEN stock_type='import' THEN quantity ELSE 0 END) AS total_in,
-                SUM(CASE WHEN stock_type='remove' THEN quantity ELSE 0 END) AS total_out
-        FROM stock
-        WHERE YEAR(stock_date)=$month_year AND deleted=0";
-if($month_type) $sql .= " AND stock_type='".$conn->real_escape_string($month_type)."'";
-$sql .= " GROUP BY MONTH(stock_date)";
+$sql = "SELECT MONTH(pay_month) AS m, SUM(amount) AS total
+        FROM employee_payments
+        WHERE YEAR(pay_month)=$selected_year
+        GROUP BY MONTH(pay_month)";
 $res = $conn->query($sql);
 while($r = $res->fetch_assoc()){
-    $monthlyData[(int)$r['m']]['in']   += (float)$r['total_in'];
-    $monthlyData[(int)$r['m']]['out'] += (float)$r['total_out'];
+    $monthlyData[$r['m']] = (float)$r['total'];
 }
 
-// ===================== กราฟรายปี =====================
+// ===================== ข้อมูลรายปีรวม =====================
 $yearlyData = [];
-$sql = "SELECT YEAR(stock_date) AS y,
-                SUM(CASE WHEN stock_type='import' THEN quantity ELSE 0 END) AS total_in,
-                SUM(CASE WHEN stock_type='remove' THEN quantity ELSE 0 END) AS total_out
-        FROM stock
-        WHERE deleted=0";
-if($year_type) $sql .= " AND stock_type='".$conn->real_escape_string($year_type)."'";
-$sql .= " GROUP BY YEAR(stock_date)";
+$sql = "SELECT YEAR(pay_month) AS y, SUM(amount) AS total
+        FROM employee_payments
+        GROUP BY YEAR(pay_month)";
 $res = $conn->query($sql);
 while($r = $res->fetch_assoc()){
-    $yearlyData[(int)$r['y']]['in']   = (float)$r['total_in'];
-    $yearlyData[(int)$r['y']]['out'] = (float)$r['total_out'];
+    $yearlyData[$r['y']] = (float)$r['total'];
 }
-?>
 
+// ===================== Dataset สำหรับ Chart.js =====================
+$datasetsMonth = [
+    [
+        'label' => 'เงินเดือนรวมบริษัท',
+        'data' => array_values($monthlyData),
+        'backgroundColor' => 'rgba(39,174,96,0.7)',
+        'borderRadius' => 5
+    ]
+];
+
+$datasetsYear = [
+    [
+        'label' => 'เงินเดือนรวมบริษัท',
+        'data' => array_values($yearlyData),
+        'borderColor' => 'rgba(39,174,96,1)',
+        'backgroundColor' => 'rgba(39,174,96,0.2)',
+        'fill' => true,
+        'tension' => 0.3
+    ]
+];
+?>
 
 <!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>กราฟสต็อกสินค้า</title>
+<title>📊 กราฟเงินเดือนรวมบริษัท</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <style>
 /* --- General Styles & Typography --- */
@@ -116,7 +106,7 @@ h1 {
 
 h2 {
     font-size: 1.5rem;
-    margin-top: 2.5rem;
+    margin-top: 2rem;
     margin-bottom: 1rem;
     font-weight: 600;
     color: #34495e;
@@ -221,7 +211,7 @@ h2 {
 }
 
 /* --- Filter & Chart Section --- */
-.filter {
+.container {
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -229,7 +219,7 @@ h2 {
   margin-bottom: 2rem;
 }
 
-.filter form {
+.filter {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -272,13 +262,120 @@ h2 {
     transform: translateY(-2px);
 }
 
-.chart-container {
-    background: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+.export-group {
+    text-align: center;
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
 }
+
+.btn-export {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    color: white;
+    font-size: 1rem;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-export.pdf {
+    background-color: #e74c3c;
+}
+.btn-export.excel {
+    background-color: #2ecc71;
+}
+
+.btn-export:hover {
+    transform: translateY(-2px);
+}
+.btn-export.pdf:hover { background-color: #c0392b; }
+.btn-export.excel:hover { background-color: #27ae60; }
+
+/* --- Modal Styles (New) --- */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 200;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e0e6ea;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #3498db;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #7f8c8d;
+    transition: color 0.2s ease;
+}
+
+.close-btn:hover {
+    color: #e74c3c;
+}
+
+.modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.btn-share {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    color: white;
+    font-size: 1rem;
+    background-color: #9b59b6; /* Purple */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-share:hover {
+    background-color: #8e44ad;
+}
+
 
 /* --- Responsive Design --- */
 @media (max-width: 768px) {
@@ -294,15 +391,83 @@ h2 {
   }
   .toggle-btn {
     left: 1rem;
+    right: auto;
   }
-  .filter form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .filter select, 
-  .filter button {
+}
+/* ==== Canva-like Share Modal ==== */
+.modal-content.share-style {
+    max-width: 450px;
+    padding: 1.5rem;
+}
+
+.share-input {
+    display: flex;
+    gap: 0.5rem;
+}
+.share-input input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+.share-input .add-btn {
+    background: #3498db;
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.share-input .add-btn:hover {
+    background: #2980b9;
+}
+
+.share-access {
+    margin: 1rem 0;
+}
+.share-access select {
     width: 100%;
-  }
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+.btn-copy {
+    width: 100%;
+    background: #9b59b6;
+    color: white;
+    padding: 0.9rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+    cursor: pointer;
+}
+.btn-copy:hover {
+    background: #8e44ad;
+}
+
+.share-extra {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.share-extra a {
+    flex: 1;
+    text-align: center;
+    background: #f7f7f7;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: none;
+    color: #333;
+}
+.share-extra a:hover {
+    background: #eaeaea;
 }
 
 </style>
@@ -313,89 +478,57 @@ h2 {
 
 <div class="sidebar" id="sidebar">
   <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-  <h2>ข้อมูลสต็อกสินค้า</h2>
-  <a href="stock_dashboard.php?page=table&type=&day_month="><i class="fas fa-list"></i>&nbsp; <span>รายงานสต็อก</span></a>
-  <a href="stock_graphs.php" class="active"><i class="fas fa-chart-pie"></i>&nbsp; <span>กราฟรายงาน</span></a>
+  <h2>รายงานกราฟเงินเดือน</h2>
+  <a href="employee_dashboard.php"><i class="fas fa-users"></i>&nbsp; <span>รายการเช็คชื่อ</span></a>
+  <a href="employee_graphs.php" class="active"><i class="fas fa-chart-pie"></i>&nbsp; <span>รายงานกราฟเงินเดือน</span></a>
 </div>
 
-<!-- Main content -->
 <div class="main" id="main">
-<h1><i class="fas fa-chart-bar"></i> กราฟรายงานคลังสินค้า</h1>
+<h1><i class="fas fa-chart-line"></i>&nbsp; กราฟเงินเดือนรวมบริษัท</h1>
 
-<!-- Daily Chart -->
-<h2>กราฟรายวัน (<?=thai_month($day_month)?>/<?=$day_year?>)</h2>
-<div class="filter">
-<form method="get">
-  <input type="hidden" name="month_type" value="<?=$month_type?>">
-  <input type="hidden" name="month_year" value="<?=$month_year?>">
-  <input type="hidden" name="year_type" value="<?=$year_type?>">
-  <label for="day_type">ประเภท:</label>
-  <select name="day_type" id="day_type">
-    <option value="" <?=($day_type=='')?'selected':''?>>ทั้งหมด</option>
-    <option value="import" <?=($day_type=='import')?'selected':''?>>นำเข้า</option>
-    <option value="remove" <?=($day_type=='remove')?'selected':''?>>นำออก</option>
-  </select>
-  <label for="day_month">เดือน:</label>
-  <select name="day_month" id="day_month"><?php for($m=1;$m<=12;$m++): ?>
-      <option value="<?=$m?>" <?=($day_month==$m)?'selected':''?>><?=thai_month($m)?></option>
-  <?php endfor; ?></select>
-  <label for="day_year">ปี:</label>
-  <select name="day_year" id="day_year"><?php for($y=2023;$y<=2035;$y++): ?>
-      <option value="<?=$y?>" <?=($day_year==$y)?'selected':''?>><?=$y?></option>
-  <?php endfor; ?></select>
-  <button type="submit"><i class="fas fa-filter"></i>&nbsp; กรอง</button>
-</form>
-</div>
-<div class="chart-container">
-    <canvas id="dailyChart" height="150"></canvas>
+<div class="container">
+  <div class="filter">
+    <form method="get">
+      <label>เลือกปี:</label>
+      <select name="year" onchange="this.form.submit()">
+        <?php for($y=2023;$y<=2035;$y++): ?>
+        <option value="<?=$y?>" <?=($selected_year==$y)?'selected':''?>><?=$y?></option>
+        <?php endfor; ?>
+      </select>
+    </form>
+  </div>
+  <h2>เงินเดือนรวมรายเดือน (<?=$selected_year?>)</h2>
+  <canvas id="salaryChart" height="150"></canvas>
 </div>
 
-
-<!-- Monthly Chart -->
-<h2>กราฟรายเดือน (<?=$month_year?>)</h2>
-<div class="filter">
-<form method="get">
-  <input type="hidden" name="day_type" value="<?=$day_type?>">
-  <input type="hidden" name="day_month" value="<?=$day_month?>">
-  <input type="hidden" name="day_year" value="<?=$day_year?>">
-  <input type="hidden" name="year_type" value="<?=$year_type?>">
-  <label for="month_type">ประเภท:</label>
-  <select name="month_type" id="month_type">
-    <option value="" <?=($month_type=='')?'selected':''?>>ทั้งหมด</option>
-    <option value="import" <?=($month_type=='import')?'selected':''?>>นำเข้า</option>
-    <option value="remove" <?=($month_type=='remove')?'selected':''?>>นำออก</option>
-  </select>
-  <label for="month_year">ปี:</label>
-  <select name="month_year" id="month_year"><?php for($y=2023;$y<=2035;$y++): ?>
-      <option value="<?=$y?>" <?=($month_year==$y)?'selected':''?>><?=$y?></option>
-  <?php endfor; ?></select>
-  <button type="submit"><i class="fas fa-filter"></i>&nbsp; กรอง</button>
-</form>
-</div>
-<div class="chart-container">
-    <canvas id="monthlyChart" height="150"></canvas>
+<div class="container">
+  <h2>เงินเดือนรวมรายปี</h2>
+  <canvas id="salaryYearChart" height="150"></canvas>
 </div>
 
-<!-- Yearly Chart -->
-<h2>กราฟรายปี</h2>
-<div class="filter">
-<form method="get">
-  <input type="hidden" name="day_type" value="<?=$day_type?>">
-  <input type="hidden" name="day_month" value="<?=$day_month?>">
-  <input type="hidden" name="day_year" value="<?=$day_year?>">
-  <input type="hidden" name="month_type" value="<?=$month_type?>">
-  <input type="hidden" name="month_year" value="<?=$month_year?>">
-  <label for="year_type">ประเภท:</label>
-  <select name="year_type" id="year_type">
-    <option value="" <?=($year_type=='')?'selected':''?>>ทั้งหมด</option>
-    <option value="import" <?=($year_type=='import')?'selected':''?>>นำเข้า</option>
-    <option value="remove" <?=($year_type=='remove')?'selected':''?>>นำออก</option>
-  </select>
-  <button type="submit"><i class="fas fa-filter"></i>&nbsp; กรอง</button>
-</form>
+<div class="export-group">
+    <button type="button" class="btn-share" id="shareButton">
+        <i class="fas fa-share-alt"></i> แชร์
+    </button>
 </div>
-<div class="chart-container">
-    <canvas id="yearlyChart" height="150"></canvas>
+
+<div class="modal-overlay" id="shareModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-file-export"></i> ส่งออกรายงาน</h3>
+            <button type="button" class="close-btn">&times;</button>
+        <div class="modal-body export-group">
+          <button class="file-button" data-file-type="excel">เลือกไฟล์ </button>
+            <a href="employee_export.php?format=pdf&year=<?= $selected_year ?>" class="btn-export pdf"><i class="fas fa-file-pdf"></i>&nbsp; ส่งออก PDF</a>
+            <a href="employee_export.php?format=excel&year=<?= $selected_year ?>" class="btn-export excel"><i class="fas fa-file-excel"></i>&nbsp; ส่งออก Excel</a>
+        </div>
+         <div class="action-buttons">
+                <button id="downloadButton">ดาวน์โหลด</button>
+                <button id="emailButton">อีเมล</button>
+                <button id="messengerButton">Messenger</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -421,42 +554,54 @@ if (isMobile.matches) {
     main.classList.add('full-width');
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    const salaryChart = new Chart(document.getElementById('salaryChart'), {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode(array_values($labelsMonth)); ?>,
+            datasets: <?= json_encode($datasetsMonth); ?>
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
 
-// Charts
-const dailyChart = new Chart(document.getElementById('dailyChart'), {
-    type: 'bar',
-    data: {
-        labels: <?= json_encode(array_keys($dailyData)) ?>,
-        datasets:[
-            { label:'นำเข้า', data: <?= json_encode(array_column($dailyData,'in')) ?>, backgroundColor:'rgba(39,174,96,0.7)', borderRadius:5 },
-            { label:'นำออก', data: <?= json_encode(array_column($dailyData,'out')) ?>, backgroundColor:'rgba(192,57,43,0.7)', borderRadius:5 }
-        ]
-    },
-    options:{ responsive:true, plugins:{legend:{position:'top'}} }
+    const salaryYearChart = new Chart(document.getElementById('salaryYearChart'), {
+        type: 'line',
+        data: {
+            labels: <?= json_encode(array_keys($yearlyData)); ?>,
+            datasets: <?= json_encode($datasetsYear); ?>
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
 });
 
-const monthlyChart = new Chart(document.getElementById('monthlyChart'), {
-    type: 'bar',
-    data: {
-        labels: <?= json_encode(array_map('thai_month', array_keys($monthlyData))) ?>,
-        datasets:[
-            { label:'นำเข้า', data: <?= json_encode(array_column($monthlyData,'in')) ?>, backgroundColor:'rgba(39,174,96,0.7)', borderRadius:5 },
-            { label:'นำออก', data: <?= json_encode(array_column($monthlyData,'out')) ?>, backgroundColor:'rgba(192,57,43,0.7)', borderRadius:5 }
-        ]
-    },
-    options:{ responsive:true, plugins:{legend:{position:'top'}} }
+// --- Modal Functionality for Sharing (New) ---
+const shareButton = document.getElementById('shareButton');
+const shareModal = document.getElementById('shareModal');
+const closeBtn = shareModal.querySelector('.close-btn');
+
+// Open the modal
+shareButton.addEventListener('click', () => {
+    shareModal.style.display = 'flex';
 });
 
-const yearlyChart = new Chart(document.getElementById('yearlyChart'), {
-    type: 'line',
-    data: {
-        labels: <?= json_encode(array_keys($yearlyData)) ?>,
-        datasets:[
-            { label:'นำเข้า', data: <?= json_encode(array_column($yearlyData,'in')) ?>, borderColor:'rgba(39,174,96,1)', backgroundColor:'rgba(39,174,96,0.2)', fill:true, tension:0.3 },
-            { label:'นำออก', data: <?= json_encode(array_column($yearlyData,'out')) ?>, borderColor:'rgba(192,57,43,1)', backgroundColor:'rgba(192,57,43,0.2)', fill:true, tension:0.3 }
-        ]
-    },
-    options:{ responsive:true, plugins:{legend:{position:'top'}} }
+// Close the modal
+closeBtn.addEventListener('click', () => {
+    shareModal.style.display = 'none';
+});
+
+// Close the modal if clicking outside the content
+shareModal.addEventListener('click', (event) => {
+    if (event.target === shareModal) {
+        shareModal.style.display = 'none';
+    }
 });
 </script>
 </body>

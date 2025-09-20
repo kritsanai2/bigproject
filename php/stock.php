@@ -233,17 +233,21 @@ h2 {
 }
 
 .balance-card {
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  flex: 1;
-  min-width: 250px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background: #3967caff;
+    border-radius: 12px;
+    /* เพิ่มเงาเพื่อให้ดูมีมิติ */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex: 1;
+    min-width: 250px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    /* เพิ่มกรอบเส้นบางๆ ที่ขอบ */
+    border: 1px solid #e0e6ea;
 }
+
 
 .balance-card:hover {
   transform: translateY(-5px);
@@ -269,14 +273,14 @@ h2 {
 
 .balance-type {
   font-size: 1rem;
-  color: #7f8c8d;
+  color: #e9eff0ff;
   font-weight: 500;
 }
 
 .balance-value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #3498db;
+  color: #ffffffff;
 }
 
 /* --- Search & Actions Section --- */
@@ -340,7 +344,7 @@ table {
   background: #ffffff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 1.0);
 }
 
 thead {

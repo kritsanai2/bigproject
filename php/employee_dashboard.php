@@ -354,14 +354,14 @@ tbody tr:hover {
 
 <div class="sidebar" id="sidebar">
   <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-  <h2>ข้อมูลโรงงาน</h2>
+  <h2>ข้อมูลเงินเดือน</h2>
   <a href="dashboard.php"><i class="fas fa-home"></i>&nbsp; <span>กลับ</span></a>
   <a href="employee_dashboard.php" class="active"><i class="fas fa-users"></i>&nbsp; <span>รายการเช็คชื่อ</span></a>
-  <a href="employee_graphs.php"><i class="fas fa-chart-pie"></i>&nbsp; <span>รายงานรายรับ-รายจ่าย</span></a>
+  <a href="employee_graphs.php"><i class="fas fa-chart-pie"></i>&nbsp; <span>รายงานกราฟเงิน </span></a>
 </div>
 
 <div class="main" id="main">
-<h1><i class="fas fa-user-check"></i>&nbsp; รายงานเช็คชื่อและเงินเดือน - <?= date('F Y', strtotime($selected_month)) ?></h1>
+<h1><i class="fas fa-user-check"></i>&nbsp; รายงานเช็คชื่อและเงินเดือน </h1>
 
 <div class="container">
   <div class="filter">
