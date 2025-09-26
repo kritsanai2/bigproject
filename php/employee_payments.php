@@ -1,37 +1,40 @@
 <?php
-require_once "db.php";  // เรียกไฟล์เชื่อมต่อฐานข้อมูล
+session_start();
+require_once "db.php"; 
 
+// กำหนดค่าแรงต่อวัน
 $full_rate = 300;
 $half_rate = 150;
-$late_rate = 300;
 
 $calculated_data = [];
-$selected_month = isset($_POST['month']) ? date('Y-m', strtotime($_POST['month'])) : date('Y-m');
+$selected_month = $_POST['month'] ?? date('Y-m');
 
-if(isset($_POST['calculate']) || isset($_POST['save'])){
-    $sql = "
-    SELECT 
-        e.employee_id,
-        e.full_name,
-        SUM(CASE WHEN a.morning='present' AND a.afternoon='present' THEN 1 ELSE 0 END) AS full_days,
-        SUM(CASE WHEN (a.morning='present' AND a.afternoon IN ('late','absent')) OR (a.morning IN ('late','absent') AND a.afternoon='present') THEN 1 ELSE 0 END) AS half_days,
-        SUM(CASE WHEN a.morning='late' OR a.afternoon='late' THEN 1 ELSE 0 END) AS late_days,
-        SUM(CASE WHEN a.morning='leave' OR a.afternoon='leave' THEN 1 ELSE 0 END) AS leave_days,
-        SUM(CASE WHEN a.morning='absent' AND a.afternoon='absent' THEN 1 ELSE 0 END) AS absent_days
-    FROM employees e
-    LEFT JOIN attendances a 
-        ON e.employee_id = a.employee_id
-        AND DATE_FORMAT(a.attend_date,'%Y-%m') = '{$selected_month}'
-    WHERE e.deleted = 0
-    GROUP BY e.employee_id
-    ORDER BY e.employee_id
-    ";
+// --- คำนวณเงินเดือน ---
+if(isset($_POST['calculate'])){
+    $stmt = $conn->prepare("
+        SELECT 
+            e.employee_id,
+            e.full_name,
+            SUM(CASE WHEN a.morning='present' AND a.afternoon='present' THEN 1 ELSE 0 END) AS full_days,
+            SUM(CASE WHEN (a.morning='present' AND a.afternoon NOT IN ('present', 'late')) OR (a.afternoon='present' AND a.morning NOT IN ('present', 'late')) THEN 1 END) AS half_days,
+            COUNT(DISTINCT CASE WHEN a.morning='late' OR a.afternoon='late' THEN a.attend_date END) AS late_days,
+            COUNT(CASE WHEN a.morning='leave' AND a.afternoon='leave' THEN 1 END) AS leave_days,
+            COUNT(CASE WHEN a.morning='absent' AND a.afternoon='absent' THEN 1 END) AS absent_days
+        FROM employees e
+        LEFT JOIN attendances a ON e.employee_id = a.employee_id AND DATE_FORMAT(a.attend_date, '%Y-%m') = ?
+        WHERE e.status = 1
+        GROUP BY e.employee_id
+        ORDER BY e.employee_id
+    ");
+    $stmt->bind_param("s", $selected_month);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-    $result = $conn->query($sql);
     if($result){
         while($row = $result->fetch_assoc()){
-            $work_days = $row['full_days'] + $row['half_days'] + $row['late_days'] + $row['leave_days'] + $row['absent_days'];
-            $amount = $row['full_days']*$full_rate + $row['half_days']*$half_rate + $row['late_days']*$late_rate;
+            // มาสายยังได้เงินเต็มวัน
+            $amount = ((int)$row['full_days'] * $full_rate) + ((int)$row['half_days'] * $half_rate) + ((int)$row['late_days'] * $full_rate);
+            $work_days_paid = (float)$row['full_days'] + ((float)$row['half_days'] * 0.5) + (float)$row['late_days'];
 
             $calculated_data[$row['employee_id']] = [
                 'full_name' => $row['full_name'],
@@ -40,213 +43,250 @@ if(isset($_POST['calculate']) || isset($_POST['save'])){
                 'late' => (int)$row['late_days'],
                 'leave' => (int)$row['leave_days'],
                 'absent' => (int)$row['absent_days'],
-                'work_days' => (int)$work_days,
-                'amount' => (int)$amount
+                'work_days' => $work_days_paid,
+                'amount' => $amount
             ];
         }
     }
 }
 
-if(isset($_POST['save']) && !empty($calculated_data)){
+// --- บันทึกข้อมูล ---
+if(isset($_POST['save']) && isset($_POST['data'])){
     $pay_month = date('Y-m-01', strtotime($selected_month));
 
-    foreach($calculated_data as $employee_id => $data){
-        $check = $conn->query("SELECT 1 FROM employee_payments WHERE employee_id='$employee_id' AND pay_month='$pay_month'");
-        if ($check && $check->num_rows > 0){
-            $sql = "UPDATE employee_payments SET
-                        work_days={$data['work_days']},
-                        daily_rate=$full_rate,
-                        full_days={$data['full']},
-                        half_days={$data['half']},
-                        late_days={$data['late']},
-                        leave_days={$data['leave']},
-                        absent_days={$data['absent']}
-                    WHERE employee_id='$employee_id' AND pay_month='$pay_month'";
-        } else {
-            $sql = "INSERT INTO employee_payments
-                        (employee_id, pay_month, work_days, daily_rate, full_days, half_days, late_days, leave_days, absent_days)
-                    VALUES
-                        ('$employee_id', '$pay_month', {$data['work_days']}, $full_rate,
-                         {$data['full']}, {$data['half']}, {$data['late']}, {$data['leave']}, {$data['absent']})";
-        }
+    $stmt = $conn->prepare("
+        INSERT INTO employee_payments (employee_id, pay_month, amount, work_days, daily_rate, full_days, half_days, late_days, leave_days, absent_days)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            amount=VALUES(amount), work_days=VALUES(work_days), daily_rate=VALUES(daily_rate), full_days=VALUES(full_days),
+            half_days=VALUES(half_days), late_days=VALUES(late_days), leave_days=VALUES(leave_days),
+            absent_days=VALUES(absent_days)
+    ");
 
-        if(!$conn->query($sql)){
-            echo "<div style='color:red;'>Error: ".$conn->error."</div>";
-        }
+    foreach($_POST['data'] as $employee_id => $data){
+        $stmt->bind_param("ssddiiiiii",
+            $employee_id, $pay_month,
+            $data['amount'], $data['work_days'], $full_rate, $data['full'],
+            $data['half'], $data['late'], $data['leave'], $data['absent']
+        );
+        $stmt->execute();
     }
-    echo "<div style='color:green; text-align:center;'>บันทึกข้อมูลเรียบร้อย</div>";
+    $_SESSION['alert'] = ['type' => 'success', 'message' => 'บันทึกข้อมูลเงินเดือนเรียบร้อย'];
+    header("Location: " . $_SERVER['PHP_SELF']."?month=".$selected_month); 
+    exit();
 }
-
 ?>
-
-
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Employee Payments</title>
+<title>คำนวณและบันทึกเงินเดือน</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
 
-body {
-    font-family: 'Sarabun', sans-serif;
-    background: #e6f7f1;
-    margin: 0;
-    padding: 40px 20px;
-    color: #0a3d62;
-}
+    :root {
+        --primary-color: #3498db;
+        --secondary-color: #2c3e50;
+        --light-teal-bg: #eaf6f6;
+        --navy-blue: #001f3f;
+        --gold-accent: #fca311;
+        --white: #ffffff;
+        --light-gray: #f8f9fa;
+        --gray-border: #ced4da;
+        --text-color: #495057;
+        --success: #2ecc71;
+        --danger: #e74c3c;
+        --warning: #f39c12;
+    }
 
-h2 {
-    text-align: center;
-    color: #074f57;
-}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Sarabun', sans-serif;
+        background-color: var(--light-teal-bg);
+        color: var(--text-color);
+        padding: 20px;
+    }
 
-form {
-    margin-bottom: 20px;
-    text-align: center;
-}
+    .container-wrapper {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: var(--white);
+        border-radius: 20px;
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        padding: 30px 40px;
+    }
 
-input[type="month"] {
-    padding: 6px 10px;
-    font-size: 1rem;
-    border-radius: 5px;
-    border: 1px solid #74b9ff;
-    margin-right: 10px;
-}
+    header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        border-bottom: 2px solid var(--primary-color);
+        padding-bottom: 20px;
+        margin-bottom: 30px;
+        gap: 1rem;
+    }
+    .logo {
+        width: 70px; height: 70px; border-radius: 50%;
+        object-fit: cover; border: 3px solid var(--gold-accent);
+    }
+    header h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: 2.5rem; color: var(--navy-blue);
+        margin: 0; font-weight: 700;
+        display: flex; align-items: center; gap: 1rem;
+    }
+    .home-button {
+        text-decoration: none; background-color: var(--primary-color); color: var(--white);
+        padding: 10px 25px; border-radius: 50px; font-weight: 500;
+        transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
+        display: flex; align-items: center; gap: 8px;
+    }
+    .home-button:hover {
+        background-color: #2980b9; transform: translateY(-3px);
+        box-shadow: 0 6px 15px rgba(52, 152, 219, 0.3);
+    }
+    
+    .container {
+        background-color: var(--white);
+        padding: 25px; border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    
+    .form-controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        background-color: var(--light-gray);
+        border-radius: 12px;
+    }
+    .form-controls label { font-weight: 500; }
+    .form-controls input[type="month"] {
+        padding: 10px; border: 1px solid var(--gray-border);
+        border-radius: 8px; font-size: 1rem; font-family: 'Sarabun', sans-serif;
+    }
+    .form-controls button {
+        padding: 10px 25px; border: none; border-radius: 8px;
+        font-size: 1rem; font-weight: 500; cursor: pointer; color: white;
+        display: inline-flex; align-items: center; gap: 8px;
+        transition: all 0.2s;
+    }
+    .form-controls button[name="calculate"] { background-color: var(--primary-color); }
+    .form-controls button[name="calculate"]:hover { background-color: #2980b9; transform: translateY(-2px); }
+    
+    .save-button-container { text-align: center; margin-top: 2rem; }
+    .save-button-container button {
+        background-color: var(--success); color: white;
+        padding: 12px 30px; font-size: 1.1rem; border-radius: 8px;
+        border: none; cursor: pointer; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 8px;
+        transition: all 0.2s;
+    }
+    .save-button-container button:hover { background-color: #27ae60; transform: translateY(-2px); }
 
-button {
-    padding: 8px 18px;
-    border: none;
-    border-radius: 5px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-button[name="calculate"] {
-    background-color: #00cec9;
-    color: white;
-}
-
-button[name="calculate"]:hover {
-    background-color: #019ca1;
-}
-
-button[name="save"] {
-    background-color: #55efc4;
-    color: #074f57;
-}
-
-button[name="save"]:hover {
-    background-color: #00b894;
-    color: white;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-th {
-    background-color: #00b894;
-    color: white;
-    padding: 12px;
-    text-align: center;
-}
-
-td {
-    background-color: #dff9fb;
-    padding: 12px;
-    text-align: center;
-    border-bottom: 1px solid #c8d6e5;
-}
-
-tr:hover td {
-    background-color: #74b9ff;
-    color: #fff;
-    transform: translateY(-2px);
-    transition: 0.2s;
-}
-
-input[type="hidden"] {
-    display: none;
-}
-.home-button {
-    text-decoration: none;
-    background-color: #008080; /* Classic teal button */
-    color: #fff;
-    padding: 12px 25px;
-    border-radius: 30px;
-    font-weight: 600;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-}
-
-.home-button:hover {
-    background-color: #005f73; /* Darker teal on hover */
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
+    .table-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+        background-color: var(--navy-blue); color: var(--white);
+        padding: 15px; text-align: center; font-size: 0.9rem;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    tbody td {
+        padding: 15px; border-bottom: 1px solid #e0e0e0; color: #333; text-align: center;
+    }
+    tbody td:nth-child(3) { text-align: left; } /* Align name to left */
+    tbody td:last-child { font-weight: bold; color: var(--primary-color); }
+    tbody tr { transition: background-color 0.2s ease; }
+    tbody tr:nth-child(even) { background-color: var(--light-gray); }
+    tbody tr:hover { background-color: #d4eaf7; }
 </style>
 </head>
 <body>
 
-<h2>คำนวณเงินเดือนและบันทึก</h2>
+<div class="container-wrapper">
+    <header>
+        <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo"/>
+        <h1><i class="fas fa-calculator"></i> คำนวณและบันทึกเงินเดือน</h1>
+        <a href="attendances.php" class="home-button"><i class="fas fa-arrow-left"></i> กลับไปหน้าเช็คชื่อ</a>
+    </header>
 
-<a href="attendances.php" class="home-button"> กลับ</a>
+    <div class="container">
+        <form method="POST" class="form-controls">
+            <label for="month-select">เลือกเดือน:</label> 
+            <input type="month" id="month-select" name="month" value="<?= $selected_month ?>">
+            <button type="submit" name="calculate"><i class="fas fa-cogs"></i> คำนวณ</button>
+        </form>
 
-<form method="POST">
-    เลือกเดือน: <input type="month" name="month" value="<?= $selected_month ?>">
-    <button type="submit" name="calculate">คำนวณเงินเดือน</button>
-</form>
-
-<?php if(!empty($calculated_data)): ?>
-<form method="POST">
-    <input type="hidden" name="month" value="<?= $selected_month ?>">
-    <table>
-        <tr>
-            <th>ลำดับ</th>
-            <th>รหัสพนักงาน</th>
-            <th>ชื่อ-สกุล</th>
-            <th>วันเต็ม</th>
-            <th>ครึ่งวัน</th>
-            <th>วันสาย</th>
-            <th>วันลา</th>
-            <th>วันขาด</th>
-            <th>จำนวนวันทำงาน</th>
-            <th>เงินเดือน (บาท)</th>
-        </tr>
-        <?php $i=1; foreach($calculated_data as $id=>$d): ?>
-        <tr>
-            <td><?= $i++ ?></td>
-            <td><?= $id ?></td>
-            <td><?= $d['full_name'] ?></td>
-            <td><?= $d['full'] ?></td>
-            <td><?= $d['half'] ?></td>
-            <td><?= $d['late'] ?></td>
-            <td><?= $d['leave'] ?></td>
-            <td><?= $d['absent'] ?></td>
-            <td><?= $d['work_days'] ?></td>
-            <td><?= $d['amount'] ?></td>
-
-        </tr>
-        <input type="hidden" name="data[<?= $id ?>][full]" value="<?= $d['full'] ?>">
-        <input type="hidden" name="data[<?= $id ?>][half]" value="<?= $d['half'] ?>">
-        <input type="hidden" name="data[<?= $id ?>][late]" value="<?= $d['late'] ?>">
-        <input type="hidden" name="data[<?= $id ?>][leave]" value="<?= $d['leave'] ?>">
-        <input type="hidden" name="data[<?= $id ?>][absent]" value="<?= $d['absent'] ?>">
-        <input type="hidden" name="data[<?= $id ?>][work_days]" value="<?= $d['work_days'] ?>">
-        <?php endforeach; ?>
-    </table>
-    <div style="text-align:center; margin-top:20px;">
-        <button type="submit" name="save">บันทึกลงฐานข้อมูล</button>
+        <?php if(!empty($calculated_data)): ?>
+        <form method="POST">
+            <input type="hidden" name="month" value="<?= $selected_month ?>">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th> <th>รหัส</th> <th>ชื่อ-สกุล</th> <th>เต็มวัน</th> <th>ครึ่งวัน</th> <th>สาย</th> <th>ลา</th> <th>ขาด</th> <th>รวมวันได้เงิน</th> <th>เงินเดือน (บาท)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php $i=1; $total_amount = 0; foreach($calculated_data as $id => $d): $total_amount += $d['amount']; ?>
+                        <tr>
+                            <td><?= $i++ ?></td>
+                            <td><?= $id ?></td>
+                            <td><?= htmlspecialchars($d['full_name']) ?></td>
+                            <td><?= $d['full'] ?></td>
+                            <td><?= $d['half'] ?></td>
+                            <td><?= $d['late'] ?></td>
+                            <td><?= $d['leave'] ?></td>
+                            <td><?= $d['absent'] ?></td>
+                            <td><?= number_format($d['work_days'], 1) ?></td>
+                            <td><?= number_format($d['amount'], 2) ?></td>
+                        </tr>
+                        <input type="hidden" name="data[<?= $id ?>][full]" value="<?= $d['full'] ?>">
+                        <input type="hidden" name="data[<?= $id ?>][half]" value="<?= $d['half'] ?>">
+                        <input type="hidden" name="data[<?= $id ?>][late]" value="<?= $d['late'] ?>">
+                        <input type="hidden" name="data[<?= $id ?>][leave]" value="<?= $d['leave'] ?>">
+                        <input type="hidden" name="data[<?= $id ?>][absent]" value="<?= $d['absent'] ?>">
+                        <input type="hidden" name="data[<?= $id ?>][work_days]" value="<?= $d['work_days'] ?>">
+                        <input type="hidden" name="data[<?= $id ?>][amount]" value="<?= $d['amount'] ?>">
+                    <?php endforeach; ?>
+                    </tbody>
+                    <tfoot>
+                        <tr style="background-color: var(--navy-blue); color: var(--white); font-weight: bold;">
+                            <td colspan="9" style="text-align: right; padding-right: 2rem;">ยอดรวมเงินเดือนทั้งหมด</td>
+                            <td><?= number_format($total_amount, 2) ?></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div class="save-button-container">
+                <button type="submit" name="save"><i class="fas fa-save"></i> บันทึกลงฐานข้อมูล</button>
+            </div>
+        </form>
+        <?php endif; ?>
     </div>
-</form>
-<?php endif; ?>
+</div>
+
+<?php if(isset($_SESSION['alert'])): ?>
+<script>
+    Swal.fire({
+        icon: '<?= $_SESSION['alert']['type'] ?>',
+        title: '<?= $_SESSION['alert']['message'] ?>',
+        showConfirmButton: false,
+        timer: 1800,
+        toast: true,
+        position: 'top-end',
+        timerProgressBar: true
+    });
+</script>
+<?php unset($_SESSION['alert']); endif; ?>
 
 </body>
 </html>

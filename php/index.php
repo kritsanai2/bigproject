@@ -266,14 +266,14 @@
     <header>
         <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
         <h1>ระบบจัดการโรงน้ำดื่มตากับยาย</h1>
-        <a href="logout.php" class="logout-btn">ออกจากระบบ</a>
+        <a href="logout.php" class="logout-btn"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</a>
     </header>
     <nav>
         <ul>
             <li><a href="dashboard.php" title="จัดการรายงาน"><i class="fas fa-chart-line menu-icon"></i> <span>จัดการรายงาน</span></a></li>
             <li><a href="customers.php" title="ข้อมูลลูกค้า"><i class="fas fa-user-friends menu-icon"></i> <span>ข้อมูลลูกค้า</span></a></li>
             <li><a href="products.php" title="ข้อมูลสินค้า"><i class="fas fa-box-open menu-icon"></i> <span>ข้อมูลสินค้า</span></a></li>
-            <li><a href="stock.php" title="ข้อมูลสต็อกสินค้า"><i class="fas fa-warehouse menu-icon"></i> <span>ข้อมูลสต็อกสินค้า</span></a></li>
+            <li><a href="stock.php" title="ข้อมูลสต็อกสินค้า"><i class="fas fa-warehouse menu-icon"></i> <span>ข้อมูลคลังสินค้า</span></a></li>
             <li><a href="transactions.php" title="ข้อมูลรายรับ-รายจ่าย"><i class="fas fa-money-bill-wave menu-icon"></i> <span>ข้อมูลรายรับ-รายจ่าย</span></a></li>
             <li><a href="employees.php" title="ข้อมูลพนักงาน"><i class="fas fa-user-tie menu-icon"></i> <span>ข้อมูลพนักงาน</span></a></li>
             <li><a href="orders.php" title="ข้อมูลคำสั่งซื้อ"><i class="fas fa-shopping-cart menu-icon"></i> <span>ข้อมูลคำสั่งซื้อ</span></a></li>
