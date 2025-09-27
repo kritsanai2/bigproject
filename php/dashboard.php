@@ -1,5 +1,6 @@
 <?php
 require_once "db.php"; // เรียกไฟล์เชื่อมต่อฐานข้อมูล
+require_once __DIR__ . '/includes/auth.php';
 
 // ดึงข้อมูลสรุปจากตารางต่างๆ
 $stock_count = $conn->query("SELECT IFNULL(SUM(CASE WHEN stock_type='import' THEN quantity ELSE -quantity END),0) AS total FROM stock")->fetch_assoc()['total'];

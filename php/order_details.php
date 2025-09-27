@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once "db.php"; 
+require_once __DIR__ . '/includes/auth.php';
 
 $order_id = isset($_GET['order_id']) ? (int)$_GET['order_id'] : 0;
 if ($order_id <= 0) die("ไม่พบรหัสคำสั่งซื้อ");

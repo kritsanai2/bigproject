@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once "db.php"; 
+require_once __DIR__ . '/includes/auth.php';
 
 // --- จัดการการลบข้อมูล ---
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['delete_id'])) {

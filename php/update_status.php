@@ -1,6 +1,7 @@
 <?php
 require_once "db.php";
 
+
 $empId = $_POST['employee_id'] ?? '';
 $period = $_POST['period'] ?? '';
 $status = $_POST['status'] ?? '';

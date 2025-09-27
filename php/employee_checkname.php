@@ -1,5 +1,6 @@
 <?php
 require_once "db.php"; // เรียกไฟล์เชื่อมต่อฐานข้อมูล
+require_once __DIR__ . '/includes/auth.php';
 
 $selected_month = $_POST['month'] ?? date('Y-m'); // YYYY-MM
 $daily_rate = 300; // วันเต็ม

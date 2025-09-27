@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once "db.php"; 
+require_once __DIR__ . '/includes/auth.php';
 
 // กำหนดค่าแรงต่อวัน
 $full_rate = 300;

@@ -1,0 +1,8 @@
+{
+    "require": {
+        "setasign/fpdf": "^1.8",
+        "phpmailer/phpmailer": "^6.10",
+        "setasign/tfpdf": "^1.33",
+        "league/oauth2-google": "^4.0"
+    }
+}

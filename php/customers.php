@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once "db.php";
+require_once __DIR__ . '/includes/auth.php';
 
 // --- API Endpoint สำหรับดึงข้อมูลคำสั่งซื้อ (สำหรับ Modal) ---
 if (isset($_GET['action']) && $_GET['action'] == 'get_orders') {
@@ -385,23 +386,40 @@ $result = $conn->query($sql);
         <div class="filter-controls">
             <input type="hidden" id="current-customer-id">
             <label>เดือน:</label>
-            <select id="filter-month">
-                <option value="0">ทั้งปี</option>
-                <?php $thai_months = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]; 
-                for($m=1;$m<=12;$m++): ?>
-                <option value="<?= $m ?>"><?= $thai_months[$m-1] ?></option>
-                <?php endfor; ?>
-            </select>
-            <label>ปี:</label>
-            <select id="filter-year">
-                <option value="0">ทั้งหมด</option>
-                <?php for($y=date("Y");$y>=2023;$y--): ?>
-                <option value="<?= $y ?>"><?= $y+543 ?></option>
-                <?php endfor; ?>
-            </select>
-            <button onclick="loadOrders()"><i class="fas fa-filter"></i> กรองข้อมูล</button>
+<select id="filter-month">
+    <option value="0">ทั้งหมด</option>
+    <?php 
+    $thai_months = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"]; 
+    for($m=1; $m<=12; $m++): 
+    ?>
+    <option value="<?= $m ?>"><?= $thai_months[$m-1] ?></option>
+    <?php endfor; ?>
+</select>
+
+<label>ปี (พ.ศ.):</label>
+<label>ปี (พ.ศ.):</label>
+<select id="filter-year">
+    <option value="0">ทั้งหมด</option>
+    <?php 
+    // วนลูปตั้งแต่ปี ค.ศ. 2022 ถึง 2035
+    for($y = 2022; $y <= 2035; $y++): 
+    ?>
+    <option value="<?= $y ?>"><?= $y + 543 ?></option>
+    <?php endfor; ?>
+</select>
+    <button onclick="loadOrders()"><i class="fas fa-filter"></i> กรองข้อมูล</button>
         </div>
-        <div class="table-wrapper"><table id="orders-table"><thead><tr><th>รหัสสั่งซื้อ</th><th>วันที่</th><th>สินค้า</th><th>จำนวน</th><th>ราคา/หน่วย</th><th>ราคารวม</th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrapper"><table id="orders-table"><thead><tr>
+            <th>รหัสสั่งซื้อ</th>
+            <th>วันที่</th>
+            <th>สินค้า</th>
+            <th>จำนวน</th>
+            <th>ราคา/หน่วย</th>
+            <th>ราคารวม</th></tr>
+        </thead><tbody>
+
+        </tbody></table>
+    </div>
     </div>
 </div>
 

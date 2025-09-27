@@ -1,9 +1,10 @@
 <?php
 session_start();
-// Make sure to have this file with your database connection details
+// 1. เรียกใช้ไฟล์เชื่อมต่อฐานข้อมูล
 require_once "db.php";
+require_once __DIR__ . '/includes/auth.php';
 
-// Thai language helper functions
+// 2. ฟังก์ชันช่วยแปลภาษาไทย
 function thai_month($month) {
     $months = [1 => 'มกราคม', 2 => 'กุมภาพันธ์', 3 => 'มีนาคม', 4 => 'เมษายน', 5 => 'พฤษภาคม', 6 => 'มิถุนายน', 7 => 'กรกฎาคม', 8 => 'สิงหาคม', 9 => 'กันยายน', 10 => 'ตุลาคม', 11 => 'พฤศจิกายน', 12 => 'ธันวาคม'];
     return $months[(int)$month] ?? '';
@@ -13,59 +14,63 @@ function thai_type($type) {
     return strtolower($type) == 'import' ? 'รับเข้า' : 'จ่ายออก';
 }
 
-// Get filter parameters from URL
+// 3. รับค่าตัวกรองจาก URL
 $type_filter = $_GET['type'] ?? '';
 $month_filter = $_GET['month'] ?? 0;
-$year_filter = $_GET['year'] ?? date('Y');
-$page = $_GET['page'] ?? 'table'; // 'table' or 'graph'
 
-// --- Data Fetching for Table ---
+// *** กำหนดค่าเริ่มต้นเป็นปีปัจจุบัน (ค.ศ.) ***
+$current_year = date('Y');
+$filter_year = isset($_GET['year']) && intval($_GET['year']) > 0 ? intval($_GET['year']) : intval($current_year);
+$page = $_GET['page'] ?? 'table';
+
+// 4. ดึงข้อมูลสำหรับตาราง (ใช้ Prepared Statements เพื่อความปลอดภัย)
 $sql = "SELECT s.stock_id, s.stock_date, p.product_name, s.stock_type, s.quantity, p.unit
         FROM stock s
         JOIN products p ON s.product_id = p.product_id";
 
-// Build WHERE clause based on filters
+// สร้างเงื่อนไข WHERE ตามตัวกรอง
 $where_clauses = [];
+$params = [];
+$types = '';
+
 if ($type_filter) {
-    $where_clauses[] = "s.stock_type = '" . $conn->real_escape_string($type_filter) . "'";
+    $where_clauses[] = "s.stock_type = ?";
+    $params[] = $type_filter;
+    $types .= 's';
 }
 if ($month_filter > 0) {
-    $where_clauses[] = "MONTH(s.stock_date) = " . (int)$month_filter;
+    $where_clauses[] = "MONTH(s.stock_date) = ?";
+    $params[] = (int)$month_filter;
+    $types .= 'i';
 }
-if ($year_filter) {
-    $where_clauses[] = "YEAR(s.stock_date) = " . (int)$year_filter;
+// ถ้า filter_year เป็นปีปัจจุบัน หรือปีที่ระบุ ให้กรองปีนั้น
+if ($filter_year > 0) {
+    $where_clauses[] = "YEAR(s.stock_date) = ?";
+    $params[] = (int)$filter_year;
+    $types .= 'i';
 }
 
 if (!empty($where_clauses)) {
     $sql .= " WHERE " . implode(' AND ', $where_clauses);
 }
 
-// **Sort by the newest data first**
+// เรียงลำดับจากใหม่ไปเก่า (DESC)
 $sql .= " ORDER BY s.stock_date DESC, s.stock_id DESC";
-$result = $conn->query($sql);
 
-// --- Data Fetching for Graph ---
-$graph_data = [];
-$graph_labels = [];
-$graph_sql = "SELECT s.stock_type, SUM(s.quantity) AS total_qty FROM stock s";
-
-if (!empty($where_clauses)) {
-    $graph_sql .= " WHERE " . implode(' AND ', $where_clauses);
+// ใช้ Prepared Statement
+$stmt = $conn->prepare($sql);
+if (!empty($params)) {
+    $stmt->bind_param($types, ...$params);
 }
+$stmt->execute();
+$result = $stmt->get_result();
 
-$graph_sql .= " GROUP BY s.stock_type";
+// ดึงจำนวนแถวทั้งหมดเพื่อใช้ในการนับลำดับย้อนกลับ
+$total_rows = $result->num_rows;
 
-$graph_result = $conn->query($graph_sql);
-if ($graph_result) {
-    while ($row = $graph_result->fetch_assoc()) {
-        $graph_data[$row['stock_type']] = $row['total_qty'];
-        $graph_labels[] = thai_type($row['stock_type']);
-    }
-}
 ?>
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -74,167 +79,85 @@ if ($graph_result) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
-
         :root {
-            --primary-color: #3498db;
-            --secondary-color: #2c3e50;
-            --light-teal-bg: #eaf6f6;
-            --navy-blue: #001f3f;
-            --gold-accent: #fca311;
-            --white: #ffffff;
-            --light-gray: #f8f9fa;
-            --gray-border: #ced4da;
-            --text-color: #495057;
-            --success: #2ecc71;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --info: #9b59b6;
+            --primary-color: #3498db; --secondary-color: #2c3e50;
+            --light-bg: #eaf6f6; --navy-blue: #001f3f; --white: #ffffff;
+            --light-gray: #f8f9fa; --gray-border: #ced4da; --text-color: #495057;
+            --success: #2ecc71; --danger: #e74c3c; --warning: #f39c12;
         }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background-color: var(--light-teal-bg);
-            color: var(--text-color);
-            display: flex;
-        }
-
-        /* --- Sidebar --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Sarabun', sans-serif; background-color: var(--light-bg); color: var(--text-color); display: flex; }
         .sidebar {
-            width: 250px;
-            background-color: var(--primary-color);
-            color: white;
-            padding: 1.5rem;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            transition: transform 0.3s ease-in-out;
-            box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            z-index: 1000;
+            width: 250px; background-color: var(--primary-color); color: white;
+            padding: 1.5rem; height: 100vh; position: fixed; top: 0; left: 0;
+            transition: transform 0.3s ease-in-out; box-shadow: 2px 0 15px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; z-index: 1000;
         }
         .sidebar.hidden { transform: translateX(-100%); }
         .sidebar-header { text-align: center; margin-bottom: 2rem; }
-        .logo {
-            width: 90px; height: 90px; border-radius: 50%;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            object-fit: cover; margin-bottom: 1rem;
-        }
-        .sidebar-header h2 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+        .logo { width: 90px; height: 90px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.3); object-fit: cover; margin-bottom: 1rem; }
+        .sidebar-header h2 { font-size: 1.5rem; }
         .sidebar a {
-            color: white; text-decoration: none; font-size: 1.1rem;
-            padding: 0.8rem 1rem; border-radius: 8px;
-            width: 100%; text-align: left;
-            transition: background-color 0.2s ease, transform 0.2s ease;
-            margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem;
+            color: white; text-decoration: none; font-size: 1.1rem; padding: 0.8rem 1rem;
+            border-radius: 8px; width: 100%; transition: all 0.2s ease; margin-bottom: 0.5rem;
+            display: flex; align-items: center; gap: 0.75rem;
         }
-        .sidebar a:hover { background-color: rgba(255, 255, 255, 0.15); transform: translateX(5px); }
-        .sidebar a.active { background-color: rgba(0, 0, 0, 0.2); font-weight: 500; }
+        .sidebar a:hover { background-color: rgba(255,255,255,0.15); transform: translateX(5px); }
+        .sidebar a.active { background-color: rgba(0,0,0,0.2); font-weight: 500; }
         .toggle-btn {
-            position: fixed; top: 1rem; right: 1rem; z-index: 1001;
-            background-color: var(--primary-color); color: white; border: none;
-            border-radius: 50%; width: 40px; height: 40px;
-            font-size: 1.5rem; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            display: flex; justify-content: center; align-items: center;
+            position: fixed; top: 1rem; right: 1rem; z-index: 1001; background-color: var(--primary-color);
+            color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 1.5rem;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex;
+            justify-content: center; align-items: center;
         }
-
-        /* --- Main Content --- */
         .main {
-            margin-left: 250px;
-            padding: 2rem;
-            flex-grow: 1;
-            transition: margin-left 0.3s ease-in-out;
+            margin-left: 250px; padding: 2rem; flex-grow: 1; transition: margin-left 0.3s ease-in-out;
             width: calc(100% - 250px);
         }
         .main.full-width { margin-left: 0; width: 100%; }
-        
-        .header-main {
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .header-main h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 2.5rem; color: var(--navy-blue);
-            margin: 0; border: none;
-            display: flex; align-items: center; gap: 1rem;
-        }
-        
-        .container {
-            background-color: var(--white);
-            padding: 25px; border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-        .filter-form { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem; }
+        .header-main { border-bottom: 2px solid var(--primary-color); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+        .header-main h1 { font-size: 2.5rem; color: var(--navy-blue); display: flex; align-items: center; gap: 1rem; }
+        .container { background-color: var(--white); padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .filter-form { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
         .filter-form label { font-weight: 500; }
-        .filter-form select {
-            padding: 0.6rem 1rem; border-radius: 8px;
-            border: 1px solid var(--gray-border); font-size: 1rem;
-            font-family: 'Sarabun', sans-serif;
+        .filter-form select { padding: 0.6rem 1rem; border-radius: 8px; border: 1px solid var(--gray-border); font-size: 1rem; }
+        .action-button {
+            padding: 0.7rem 1.2rem; border: none; border-radius: 8px; font-weight: 500; cursor: pointer;
+            color: white; font-size: 0.95rem; transition: all 0.2s ease; display: inline-flex;
+            align-items: center; gap: 0.5rem; margin-left: 0.5rem;
         }
-        #shareButton {
-            padding: 0.7rem 1.5rem; border: none; border-radius: 8px;
-            font-weight: 500; cursor: pointer; color: white; font-size: 1rem;
-            background-color: var(--info); transition: all 0.2s ease;
-            margin-left: auto;
-        }
-        #shareButton:hover { background-color: #8e44ad; transform: translateY(-2px); }
-
-        /* --- Table --- */
-        .table-wrapper { overflow-x: auto; }
+        .action-button:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .action-button.pdf { background-color: var(--danger); }
+        .action-button.excel { background-color: var(--success); }
+        .action-button.email { background-color: var(--warning); color: #333; }
         table { width: 100%; border-collapse: collapse; }
-        thead th {
-            background-color: var(--navy-blue); color: var(--white);
-            padding: 15px; text-align: left; font-size: 0.9rem;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        tbody td {
-            padding: 15px; border-bottom: 1px solid #e0e0e0;
-            color: #333;
-        }
+        thead th { background-color: var(--navy-blue); color: var(--white); padding: 15px; text-align: left; }
+        tbody td { padding: 15px; border-bottom: 1px solid #e0e0e0; }
         tbody tr:nth-child(even) { background-color: var(--light-gray); }
         tbody tr:hover { background-color: #d4eaf7; }
-
-        /* --- Chart Section --- */
-        .chart-container { padding-top: 1rem; }
-        
-        /* --- Modal --- */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 31, 63, 0.6); backdrop-filter: blur(5px); z-index: 2000; justify-content: center; align-items: center; }
-        .modal-content { background-color: var(--white); padding: 30px 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 500px; position: relative; animation: fadeInScale 0.4s ease-out; }
-        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,31,63,0.6); backdrop-filter: blur(5px); z-index: 2000;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: var(--white); padding: 30px 40px; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 500px;
+        }
         .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e0e0e0; padding-bottom: 1rem; margin-bottom: 1.5rem; }
         .modal-header h3 { margin: 0; color: var(--navy-blue); font-size: 1.8rem; }
-        .close-button { background: none; border: none; font-size: 2rem; cursor: pointer; color: #aaa; transition: color 0.2s ease, transform 0.2s ease; }
+        .close-button { background: none; border: none; font-size: 2rem; cursor: pointer; color: #aaa; transition: all 0.2s ease; }
         .close-button:hover { color: var(--danger); transform: rotate(90deg); }
-        .modal-body label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        .modal-body select { width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--gray-border); margin-bottom: 1.5rem; font-size: 1rem; }
-        .action-buttons { display: flex; gap: 1rem; }
-        .action-buttons button { flex-grow: 1; padding: 0.8rem 1rem; border-radius: 8px; border: none; color: white; font-weight: 500; cursor: pointer; transition: all 0.2s; }
-        .action-buttons button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-        #downloadButton { background-color: var(--success); }
-        #emailButton { background-color: var(--warning); color: #212529;}
-        #messengerButton { background-color: var(--primary-color); }
-        .action-buttons button:disabled { background-color: #bdc3c7; cursor: not-allowed; opacity: 0.7; transform: none; box-shadow: none; }
-
+        .modal-body input[type="email"] { width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--gray-border); margin-top: 0.5rem; font-size: 1rem; }
+        .modal-footer { margin-top: 1.5rem; display: flex; justify-content: flex-end; }
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.show { transform: translateX(0); }
-            .main { margin-left: 0; width: 100%; padding: 1.5rem; }
+            .main { margin-left: 0; width: 100%; }
             .filter-form { flex-direction: column; align-items: stretch; gap: 1rem; }
-            #shareButton { margin-left: 0; }
         }
     </style>
 </head>
-
 <body>
     <button class="toggle-btn" id="toggle-sidebar-btn"><i class="fas fa-bars"></i></button>
 
@@ -254,15 +177,9 @@ if ($graph_result) {
         <div class="header-main">
             <h1><i class="fas fa-boxes"></i>&nbsp; รายงานคลังสินค้า</h1>
         </div>
-        
-        <?php if (isset($_GET['status']) && isset($_GET['msg'])): ?>
-            <div class="container" style="padding: 15px; background-color: <?= $_GET['status'] == 'success' ? 'var(--success)' : 'var(--danger)' ?>; color: white;">
-                <p><?= htmlspecialchars($_GET['msg']) ?></p>
-            </div>
-        <?php endif; ?>
 
         <div class="container">
-            <form method="get" class="filter-form">
+            <form method="get" class="filter-form" id="filterForm">
                 <input type="hidden" name="page" value="<?= htmlspecialchars($page) ?>">
                 <label for="type-filter">ประเภท:</label>
                 <select name="type" id="type-filter" onchange="this.form.submit()">
@@ -272,25 +189,37 @@ if ($graph_result) {
                 </select>
                 <label for="month-filter">เดือน:</label>
                 <select name="month" id="month-filter" onchange="this.form.submit()">
-                    <option value="0" <?= ($month_filter == 0) ? 'selected' : '' ?>>ทั้งปี</option>
+                    <option value="0" <?= ($month_filter == 0) ? 'selected' : '' ?>>ทั้งหมด</option>
                     <?php for ($m = 1; $m <= 12; $m++) : ?>
                         <option value="<?= $m ?>" <?= ($month_filter == $m) ? 'selected' : '' ?>><?= thai_month($m) ?></option>
                     <?php endfor; ?>
                 </select>
-                <label for="year-filter">ปี (พ.ศ.):</label>
-                <select name="year" id="year-filter" onchange="this.form.submit()">
-                    <?php for ($y = date('Y'); $y >= date('Y') - 5; $y--) : ?>
-                        <option value="<?= $y ?>" <?= ($year_filter == $y) ? 'selected' : '' ?>><?= $y + 543 ?></option>
-                    <?php endfor; ?>
-                </select>
-                
-                <button type="button" id="shareButton"><i class="fas fa-share-alt"></i>&nbsp; ส่งออกรายงาน</button>
+                <label for="year-select">ปี (พ.ศ.):</label>
+<select name="year" id="year-select" onchange="this.form.submit()">
+    <option value="<?= $current_year ?>" <?= (intval($filter_year) == intval($current_year)) ? 'selected' : '' ?>>
+        ปีปัจจุบัน (<?= intval($current_year) + 543 ?>)
+    </option>
+    <?php 
+    // วนลูปตั้งแต่ปี ค.ศ. 2022 (พ.ศ. 2565) ถึง ค.ศ. 2135 (พ.ศ. 2678)
+    for($y = 2022; $y <= 2135; $y++): 
+        if ($y == $current_year) continue; // ข้ามปีปัจจุบันหากถูกเพิ่มแล้ว
+    ?>
+    <option value="<?= $y ?>" <?= (intval($y) == intval($filter_year)) ? 'selected' : '' ?>>
+        <?= $y + 543 ?>
+    </option>
+    <?php endfor; ?>
+</select>
+                <div style="margin-left:auto;">
+                    <button type="button" id="pdfButton" class="action-button pdf"><i class="fas fa-file-pdf"></i> PDF</button>
+                    <button type="button" id="excelButton" class="action-button excel"><i class="fas fa-file-excel"></i> Excel</button>
+                    <button type="button" id="emailModalButton" class="action-button email"><i class="fas fa-paper-plane"></i> ส่ง Email</button>
+                </div>
             </form>
         </div>
 
         <div class="container">
             <h2><i class="fas fa-table"></i> ตารางข้อมูลสต็อก</h2>
-            <div class="table-wrapper">
+            <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
@@ -304,11 +233,12 @@ if ($graph_result) {
                     </thead>
                     <tbody>
                         <?php if ($result && $result->num_rows > 0) :
-                            $i = 1; 
+                            // ลำดับเริ่มต้นจากจำนวนแถวทั้งหมด (รายการใหม่สุด)
+                            $i = $total_rows; 
                             while ($row = $result->fetch_assoc()) :
                         ?>
                             <tr>
-                                <td style="text-align:center;"><?= $i++ ?></td>
+                                <td style="text-align:center;"><?= $i-- ?></td>
                                 <td style="text-align:center;"><?= date('d/m/', strtotime($row['stock_date'])) . (date('Y', strtotime($row['stock_date'])) + 543) ?></td>
                                 <td><?= htmlspecialchars($row['product_name']) ?></td>
                                 <td style="text-align:center;"><?= $row['stock_type']=='import' ? '<span style="color: #27ae60; font-weight:bold;">รับเข้า</span>' : '<span style="color: #c0392b; font-weight:bold;">จ่ายออก</span>' ?></td>
@@ -327,31 +257,28 @@ if ($graph_result) {
         </div>
     </div>
 
-    <div id="shareModal" class="modal-overlay">
+    <div class="modal-overlay" id="emailModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-share-alt"></i> ส่งออกรายงาน</h3>
+                <h3><i class="fas fa-paper-plane"></i> ส่งรายงานทางอีเมล</h3>
                 <button class="close-button" onclick="closeModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <label for="fileSelect">เลือกรูปแบบไฟล์เพื่อส่งออก:</label>
-                <select id="fileSelect">
-                    <option value="">-- กรุณาเลือก --</option>
-                    <option value="pdf">PDF</option>
-                    <option value="excel">Excel</option>
-                </select>
-                
-                <label for="recipientEmail">อีเมลผู้รับ:</label>
-                <input type="email" id="recipientEmail" placeholder="ตัวอย่าง: recipient@example.com" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--gray-border); margin-bottom: 1.5rem; font-size: 1rem;">
-                
-                <div class="action-buttons">
-                    <button id="downloadButton" disabled><i class="fas fa-download"></i> ดาวน์โหลด</button>
-                    <button id="emailButton" disabled><i class="fas fa-envelope"></i> ส่งอีเมลแนบไฟล์</button>
-                    <button id="messengerButton" disabled><i class="fab fa-facebook-messenger"></i> Messenger</button>
+                <label>เลือกรูปแบบไฟล์:</label>
+                <div style="margin-bottom: 1.5rem; display: flex; gap: 2rem;">
+                    <label><input type="checkbox" name="file_format" value="pdf" checked> PDF</label>
+                    <label><input type="checkbox" name="file_format" value="excel"> Excel (.csv)</label>
                 </div>
+                <label for="recipientEmail">อีเมลผู้รับ:</label>
+                <input type="email" id="recipientEmail" placeholder="example@email.com" required>
+                <div id="emailStatus" style="margin-top: 1rem; text-align: center;"></div>
+            </div>
+            <div class="modal-footer">
+                <button id="sendEmailButton" class="action-button email">ส่ง</button>
             </div>
         </div>
     </div>
+
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const sidebar = document.getElementById('sidebar');
@@ -363,143 +290,105 @@ if ($graph_result) {
             mainContent.classList.toggle('full-width');
         });
         
+        // ปิด/เปิด sidebar อัตโนมัติสำหรับหน้าจอขนาดเล็ก
         if (window.innerWidth <= 768) {
             sidebar.classList.add('hidden');
             mainContent.classList.add('full-width');
         }
 
-        const shareButton = document.getElementById('shareButton');
-        const modal = document.getElementById('shareModal');
-        const fileSelect = document.getElementById('fileSelect');
-        const downloadBtn = document.getElementById('downloadButton');
-        const emailBtn = document.getElementById('emailButton');
-        const recipientEmailInput = document.getElementById('recipientEmail'); // เพิ่มตัวแปร
-        const messengerBtn = document.getElementById('messengerButton');
-        const actionButtons = [downloadBtn, emailBtn, messengerBtn];
-        
-        window.openModal = () => modal.style.display = 'flex';
-        window.closeModal = () => {
-            modal.style.display = 'none';
-            fileSelect.value = '';
-            recipientEmailInput.value = ''; // ล้างช่องอีเมลเมื่อปิด
-            toggleActionButtons(true);
+        const pdfButton = document.getElementById('pdfButton');
+        const excelButton = document.getElementById('excelButton');
+        const emailModalButton = document.getElementById('emailModalButton');
+        const sendEmailButton = document.getElementById('sendEmailButton');
+        const emailModal = document.getElementById('emailModal');
+        const recipientEmailInput = document.getElementById('recipientEmail');
+        const emailStatus = document.getElementById('emailStatus');
+
+        // ฟังก์ชันสร้าง URL สำหรับ Export
+        function buildExportUrl(baseUrl) {
+            const params = new URLSearchParams(window.location.search);
+            params.delete('page');
+            return `${baseUrl}?${params.toString()}`;
         }
 
-        shareButton.addEventListener('click', openModal);
-        modal.addEventListener('click', function(event) {
-            if (event.target === modal) { closeModal(); }
-        });
-        
-        function toggleActionButtons(disabled) {
-            // Logic สำหรับปุ่มดาวน์โหลด/Messenger ยังคงพึ่งพา fileSelect
-            downloadBtn.disabled = disabled;
-            messengerBtn.disabled = disabled;
-            
-            // Logic สำหรับปุ่มอีเมลต้องเช็คทั้ง fileSelect และ recipientEmail
-            const emailValue = recipientEmailInput.value.trim();
-            const fileValue = fileSelect.value;
-            emailBtn.disabled = !(fileValue && emailValue && /\S+@\S+\.\S+/.test(emailValue)); // เช็ครูปแบบอีเมลด้วย
-        }
-
-        fileSelect.addEventListener('change', function() {
-             // เรียกใช้ toggleActionButtons เพื่ออัปเดตสถานะปุ่มทั้งหมด
-            toggleActionButtons(this.value === '');
-        });
-        
-        // เพิ่ม Listener สำหรับช่องกรอกอีเมล
-        recipientEmailInput.addEventListener('input', function() {
-             // เรียกใช้ toggleActionButtons เพื่ออัปเดตสถานะปุ่มทั้งหมด
-             toggleActionButtons(fileSelect.value === '' || this.value.trim() === '');
+        pdfButton.addEventListener('click', function() {
+            window.open(buildExportUrl('stock_pdf.php'), '_blank');
         });
 
-
-        const currentParams = new URLSearchParams(window.location.search);
-        const reportTitle = "รายงานสต็อกสินค้า";
-
-        downloadBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const fileType = fileSelect.value;
-            if (!fileType) return;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังเตรียมไฟล์...';
-            this.disabled = true;
-
-            const exportUrl = `stock_export.php?format=${fileType}&${currentParams.toString()}`;
-
-            fetch(exportUrl)
-                .then(response => {
-                    if (!response.ok) { throw new Error('เกิดข้อผิดพลาดในการสร้างไฟล์'); }
-                    const disposition = response.headers.get('Content-Disposition');
-                    let filename = `stock_report_${new Date().toISOString()}.${fileType}`;
-                    if (disposition && disposition.indexOf('attachment') !== -1) {
-                        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-                        const matches = filenameRegex.exec(disposition);
-                        if (matches != null && matches[1]) {
-                            filename = matches[1].replace(/['"]/g, '');
-                        }
-                    }
-                    return response.blob().then(blob => ({ blob, filename }));
-                })
-                .then(({ blob, filename }) => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    
-                    this.innerHTML = '<i class="fas fa-download"></i> ดาวน์โหลด';
-                    closeModal();
-                })
-                .catch(error => {
-                    console.error('Download error:', error);
-                    alert('ไม่สามารถดาวน์โหลดไฟล์ได้');
-                    this.innerHTML = '<i class="fas fa-download"></i> ดาวน์โหลด';
-                    toggleActionButtons(fileSelect.value === '');
-                });
+        excelButton.addEventListener('click', function() {
+            window.location.href = buildExportUrl('stock_excel.php');
         });
 
-        // โค้ดสำหรับปุ่ม 'ส่งอีเมลแนบไฟล์' ที่ถูกแก้ไข
-        emailBtn.addEventListener('click', function() {
-            const fileType = fileSelect.value;
-            const recipientEmail = recipientEmailInput.value.trim();
-            if (!fileType || !recipientEmail) return;
+        // ฟังก์ชัน Modal (ถูกประกาศใน window scope เพื่อให้เรียกใช้ได้จาก onclick ใน HTML)
+        window.openModal = () => {
+            emailModal.style.display = 'flex';
+            recipientEmailInput.value = '';
+            emailStatus.innerHTML = '';
+            sendEmailButton.disabled = false;
+            // *** ปรับ Logic การตั้งค่าเริ่มต้นสำหรับ Checkbox ***
+            const pdfCheckbox = document.querySelector('input[name="file_format"][value="pdf"]');
+            const excelCheckbox = document.querySelector('input[name="file_format"][value="excel"]');
+            if (pdfCheckbox) pdfCheckbox.checked = true;
+            if (excelCheckbox) excelCheckbox.checked = false; // เคลียร์ Excel
+        };
+        window.closeModal = () => { emailModal.style.display = 'none'; };
 
-            // ตรวจสอบรูปแบบอีเมลขั้นสุดท้ายก่อนส่ง
-            if (!/\S+@\S+\.\S+/.test(recipientEmail)) {
-                alert('กรุณากรอกรูปแบบอีเมลให้ถูกต้อง');
+        emailModalButton.addEventListener('click', openModal);
+        emailModal.addEventListener('click', (event) => {
+            if (event.target === emailModal) closeModal();
+        });
+
+        // ฟังก์ชันส่งอีเมล
+        sendEmailButton.addEventListener('click', async function() {
+            const email = recipientEmailInput.value.trim();
+            if (!email || !/\S+@\S+\.\S+/.test(email)) {
+                emailStatus.innerHTML = '<span style="color: var(--danger);">กรุณากรอกอีเมลให้ถูกต้อง</span>';
                 return;
             }
             
-            // ชี้ไปยังสคริปต์ stock_report_email.php
-            const emailUrl = `stock_report_email.php?format=${fileType}&recipient=${encodeURIComponent(recipientEmail)}&${currentParams.toString()}`;
+            // *** ดึงค่า Checkbox ทั้งหมดที่ถูกเลือก ***
+            const selectedFormats = Array.from(document.querySelectorAll('input[name="file_format"]:checked'))
+                .map(cb => cb.value);
 
-            this.innerHTML = '<i class="fas fa-paper-plane fa-spin"></i> กำลังส่งอีเมล...';
-            this.disabled = true;
-
-            // เปลี่ยนเส้นทางผู้ใช้ไปยังสคริปต์ส่งอีเมล
-            window.location.href = emailUrl;
-            // ไม่ต้อง closeModal() เพราะจะถูก redirect ไปหน้าใหม่
-        });
-
-        messengerBtn.addEventListener('click', function() {
-            const fileType = fileSelect.value;
-            if (!fileType) return;
-            const appId = 'https://www.facebook.com/kritsanai.thongkam';
-            if (appId === 'YOUR_APP_ID') {
-                alert('กรุณาตั้งค่า Facebook App ID ในไฟล์โค้ดก่อนใช้งานฟังก์ชันนี้');
+            if (selectedFormats.length === 0) {
+                emailStatus.innerHTML = '<span style="color: var(--danger);">กรุณาเลือกรูปแบบไฟล์อย่างน้อย 1 ไฟล์</span>';
                 return;
             }
-            const exportUrl = encodeURIComponent(`${window.location.origin}${window.location.pathname.replace('stock_dashboard.php', '')}stock_export.php?format=${fileType}&${currentParams.toString()}`);
-            const messengerLink = `https://www.facebook.com/dialog/send?link=${exportUrl}&app_id=${appId}&redirect_uri=${encodeURIComponent(window.location.href)}`;
-            window.open(messengerLink, '_blank');
-            closeModal();
+            
+            this.disabled = true;
+            emailStatus.innerHTML = '<span style="color: var(--warning);">กำลังส่ง...</span>';
+
+            const formData = new FormData();
+            formData.append('email', email);
+            
+            // *** ส่งรูปแบบไฟล์ทั้งหมดเป็น Array/List (ใช้ file_formats[]) ***
+            selectedFormats.forEach(format => {
+                formData.append('file_formats[]', format);
+            });
+
+            // ส่งค่าตัวกรองทั้งหมดไปกับ FormData
+            const params = new URLSearchParams(window.location.search);
+            for (const [key, value] of params) {
+                formData.append(key, value);
+            }
+
+            try {
+                const response = await fetch('send_email.php', { method: 'POST', body: formData });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    emailStatus.innerHTML = `<span style="color: var(--success);">${result.message}</span>`;
+                    setTimeout(closeModal, 2000);
+                } else {
+                    emailStatus.innerHTML = `<span style="color: var(--danger);">ผิดพลาด: ${result.message || 'เกิดข้อผิดพลาดในการส่ง'}</span>`;
+                    this.disabled = false;
+                }
+            } catch (error) {
+                emailStatus.innerHTML = `<span style="color: var(--danger);">ผิดพลาด: ${error}</span>`;
+                this.disabled = false;
+            }
         });
     });
     </script>
 </body>
-
 </html>
