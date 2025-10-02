@@ -1,7 +1,6 @@
 <?php
-session_start();
+require_once "auth.php";
 require_once "db.php";
-require_once __DIR__ . '/includes/auth.php';
 
 // ================== เพิ่มข้อมูล ==================
 if(isset($_POST['action']) && $_POST['action']=='add'){
@@ -46,144 +45,318 @@ $result = $conn->query("SELECT * FROM employees WHERE status=1 ORDER BY employee
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+  /* ====================== Import Fonts ====================== */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
 
-    :root {
-        --primary-color: #3498db;
-        --secondary-color: #2c3e50;
-        --light-teal-bg: #eaf6f6;
-        --navy-blue: #001f3f;
-        --gold-accent: #fca311;
-        --white: #ffffff;
-        --light-gray: #f8f9fa;
-        --gray-border: #ced4da;
-        --text-color: #495057;
-        --success: #2ecc71;
-        --danger: #e74c3c;
-        --warning: #f39c12;
-    }
+/* ====================== Root Variables ====================== */
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2c3e50;
+    --light-teal-bg: #eaf6f6;
+    --navy-blue: #001f3f;
+    --gold-accent: #fca311;
+    --white: #ffffff;
+    --light-gray: #f8f9fa;
+    --gray-border: #ced4da;
+    --text-color: #495057;
+    --success: #2ecc71;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+}
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-        font-family: 'Sarabun', sans-serif;
-        background-color: var(--light-teal-bg);
-        color: var(--text-color);
-        padding: 20px;
-    }
+/* ====================== Global Reset ====================== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
 
-    .container-wrapper {
-        max-width: 1400px;
-        margin: 0 auto;
-        background: var(--white);
-        border-radius: 20px;
-        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-        padding: 30px 40px;
-    }
+body {
+    font-family: 'Sarabun', sans-serif;
+    background-color: var(--light-teal-bg);
+    color: var(--text-color);
+    padding: 20px;
+}
 
-    header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        border-bottom: 2px solid var(--primary-color);
-        padding-bottom: 20px;
-        margin-bottom: 30px;
-        gap: 1rem;
-    }
-    .logo {
-        width: 70px; height: 70px; border-radius: 50%;
-        object-fit: cover; border: 3px solid var(--gold-accent);
-    }
-    header h1 {
-        font-family: 'Playfair Display', serif;
-        font-size: 2.5rem; color: var(--navy-blue);
-        margin: 0; font-weight: 700;
-        display: flex; align-items: center; gap: 1rem;
-    }
-    .header-buttons {
-        display: flex;
-        gap: 1rem;
-    }
-    .home-button {
-        text-decoration: none; background-color: var(--primary-color); color: var(--white);
-        padding: 10px 25px; border-radius: 50px; font-weight: 500;
-        transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
-        display: flex; align-items: center; gap: 8px;
-    }
-    .home-button:hover {
-        background-color: #2980b9; transform: translateY(-3px);
-        box-shadow: 0 6px 15px rgba(52, 152, 219, 0.3);
-    }
-    .container {
-        background-color: var(--light-gray);
-        padding: 25px; border-radius: 12px;
-        margin-bottom: 30px;
-    }
-    .search-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; }
-    .search-box {
-        flex-grow: 1; padding: 0.8rem 1rem; border-radius: 8px;
-        border: 1px solid var(--gray-border); font-size: 1rem;
-        transition: all 0.3s;
-    }
-    .search-box:focus {
-        outline: none; border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
-    }
-    .action-btn {
-        padding: 0.8rem 1.5rem; border: none; border-radius: 8px;
-        font-weight: 500; cursor: pointer; color: white; font-size: 1rem;
-        display: flex; align-items: center; gap: 0.5rem;
-        transition: all 0.2s;
-    }
-    .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    .find-btn { background-color: var(--primary-color); }
-    .find-btn:hover { background-color: #2980b9; }
-    .add-btn { background-color: var(--success); }
-    .add-btn:hover { background-color: #27ae60; }
-    
-    .table-wrapper { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-        background-color: var(--navy-blue); color: var(--white);
-        padding: 15px; text-align: left; font-size: 0.9rem;
-        text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    tbody td {
-        padding: 15px; border-bottom: 1px solid #e0e0e0; color: #333;
-    }
-    tbody tr { transition: background-color 0.2s ease; }
-    tbody tr:nth-child(even) { background-color: var(--light-gray); }
-    tbody tr:hover { background-color: #d4eaf7; }
-    
-    .action-buttons { display: flex; gap: 0.5rem; justify-content: flex-start; }
-    .action-buttons button, .action-buttons a {
-        padding: 8px 12px; font-size: 0.9rem;
-        color: white; border: none; border-radius: 4px; cursor: pointer;
-        text-decoration: none; font-family: 'Sarabun', sans-serif; transition: all 0.2s;
-    }
-    .action-buttons button:hover, .action-buttons a:hover { transform: translateY(-1px); }
-    .edit-btn { background-color: var(--warning); color: #212529; }
-    .edit-btn:hover { background-color: #e0a800; }
-    .delete-btn { background-color: var(--danger); }
-    .delete-btn:hover { background-color: #c0392b; }
+/* ====================== Container Wrapper ====================== */
+.container-wrapper {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: var(--white);
+    border-radius: 20px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    padding: 30px 40px;
+}
 
-    .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 31, 63, 0.6); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-    .modal-content { background-color: var(--white); margin: auto; padding: 30px 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 550px; position: relative; animation: fadeInScale 0.4s ease-out; }
-    @keyframes fadeInScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-    .close-btn { color: #aaa; position: absolute; top: 15px; right: 20px; font-size: 2rem; font-weight: bold; cursor: pointer; transition: color 0.2s, transform 0.2s; }
-    .close-btn:hover { color: var(--danger); transform: rotate(90deg); }
-    .modal h2 { font-size: 2rem; color: var(--navy-blue); text-align: center; margin-bottom: 25px; border:none; }
-    .modal form { display: flex; flex-direction: column; gap: 5px; }
-    .modal form label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: 500; color: var(--secondary-color); }
-    .modal form input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--gray-border); font-size: 1rem; font-family: 'Sarabun', sans-serif; transition: all 0.3s; }
-    .modal form input:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 8px rgba(52, 152, 219, 0.25); }
-    .modal form button { width: 100%; padding: 12px; font-size: 1.1rem; margin-top: 20px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: 500; transition: background-color 0.3s, transform 0.2s; }
-    
-    #addModal button { background-color: var(--success); }
-    #addModal button:hover { background-color: #27ae60; }
-    #editModal button { background-color: var(--warning); color:#212529; }
-    #editModal button:hover { background-color: #e67e22; }
+/* ====================== Header ====================== */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+    gap: 1rem;
+}
+
+.logo {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--gold-accent);
+}
+
+header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    color: var(--navy-blue);
+    margin: 0;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.home-button {
+    text-decoration: none;
+    background-color: var(--primary-color);
+    color: var(--white);
+    padding: 10px 25px;
+    border-radius: 50px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.home-button:hover {
+    background-color: #2980b9;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(52, 152, 219, 0.3);
+}
+
+/* ====================== Container & Search ====================== */
+.container {
+    background-color: var(--light-gray);
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.search-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.search-box {
+    flex-grow: 1;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--gray-border);
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
+.search-box:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+/* ====================== Action Buttons ====================== */
+.action-btn {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    color: white;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.find-btn { background-color: var(--primary-color); }
+.find-btn:hover { background-color: #2980b9; }
+
+.add-btn { background-color: var(--success); }
+.add-btn:hover { background-color: #27ae60; }
+
+/* ====================== Table Styles ====================== */
+.table-wrapper { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; }
+
+thead th {
+    background-color: var(--navy-blue);
+    color: var(--white);
+    padding: 15px;
+    text-align: left;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+tbody td {
+    padding: 15px;
+    border-bottom: 1px solid #e0e0e0;
+    color: #333;
+}
+
+tbody tr { transition: background-color 0.2s ease; }
+tbody tr:nth-child(even) { background-color: var(--light-gray); }
+tbody tr:hover { background-color: #d4eaf7; }
+
+/* ====================== Table Action Buttons ====================== */
+.action-buttons { display: flex; gap: 0.5rem; justify-content: flex-start; }
+
+.action-buttons button,
+.action-buttons a {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: 'Sarabun', sans-serif;
+    transition: all 0.2s;
+}
+
+.action-buttons button:hover,
+.action-buttons a:hover { transform: translateY(-1px); }
+
+.edit-btn { background-color: var(--warning); color: #212529; }
+.edit-btn:hover { background-color: #e0a800; }
+
+.delete-btn { background-color: var(--danger); }
+.delete-btn:hover { background-color: #c0392b; }
+
+/* ====================== Modal ====================== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 31, 63, 0.6);
+    backdrop-filter: blur(5px);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: var(--white);
+    margin: auto;
+    padding: 30px 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    width: 90%;
+    max-width: 550px;
+    position: relative;
+    animation: fadeInScale 0.4s ease-out;
+}
+
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.close-btn {
+    color: #aaa;
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.close-btn:hover {
+    color: var(--danger);
+    transform: rotate(90deg);
+}
+
+.modal h2 {
+    font-size: 2rem;
+    color: var(--navy-blue);
+    text-align: center;
+    margin-bottom: 25px;
+    border: none;
+}
+
+.modal form {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.modal form label {
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: var(--secondary-color);
+}
+
+.modal form input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-border);
+    font-size: 1rem;
+    font-family: 'Sarabun', sans-serif;
+    transition: all 0.3s;
+}
+
+.modal form input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.25);
+}
+
+.modal form button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1rem;
+    margin-top: 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: white;
+    font-weight: 500;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+#addModal button { background-color: var(--success); }
+#addModal button:hover { background-color: #27ae60; }
+
+#editModal button { background-color: var(--warning); color: #212529; }
+#editModal button:hover { background-color: #e67e22; }
+
 </style>
 </head>
 <body>

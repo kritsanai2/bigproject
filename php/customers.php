@@ -1,10 +1,10 @@
 <?php
-session_start();
+require_once "auth.php";
 require_once "db.php";
-require_once __DIR__ . '/includes/auth.php';
 
 // --- API Endpoint สำหรับดึงข้อมูลคำสั่งซื้อ (สำหรับ Modal) ---
 if (isset($_GET['action']) && $_GET['action'] == 'get_orders') {
+    //บอก Browser ว่าเป็น JSON
     header('Content-Type: application/json');
     $customer_id = isset($_GET['customer_id']) ? (int)$_GET['customer_id'] : 0;
     $month = isset($_GET['month']) ? (int)$_GET['month'] : 0;
@@ -29,6 +29,7 @@ if (isset($_GET['action']) && $_GET['action'] == 'get_orders') {
         $params[0] .= "i";
         $params[] = $year;
     }
+    //มากไปน้อย
     $sql .= " ORDER BY o.order_date DESC, o.order_id DESC";
 
     $stmt = $conn->prepare($sql);
@@ -83,218 +84,369 @@ $result = $conn->query($sql);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        /* Import Google Fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+       /* ==========================================================================
+   1. FONTS & GLOBAL VARIABLES
+   ========================================================================== */
 
-        /* --- Global & Body Styles --- */
-        :root {
-            --primary-teal: #3498db;
-            --dark-teal: #005f73;
-            --light-teal-bg: #eaf6f6;
-            --navy-blue: #001f3f;
-            --gold-accent: #fca311;
-            --white: #ffffff;
-            --light-gray: #f8f9fa;
-            --gray-border: #ced4da;
-            --text-color: #495057;
-            --secondary-color: #2c3e50; /* Added for consistency */
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --info: #9b59b6;
-        }
+/* --- Import Google Fonts --- */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
 
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background-color: var(--light-teal-bg);
-            margin: 0;
-            padding: 20px;
-            color: var(--text-color);
-        }
+/* --- Define global color palette and variables for easy maintenance --- */
+:root {
+    --primary-teal: #3498db;
+    --dark-teal: #005f73;
+    --light-teal-bg: #eaf6f6;
+    --navy-blue: #001f3f;
+    --gold-accent: #fca311;
+    --white: #ffffff;
+    --light-gray: #f8f9fa;
+    --gray-border: #ced4da;
+    --text-color: #495057;
+    --secondary-color: #2c3e50;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+    --info: #9b59b6;
+}
 
-        .container-wrapper {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: var(--white);
-            border-radius: 20px;
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
-            padding: 30px 40px;
-        }
 
-        /* --- Header Section --- */
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid var(--primary-teal);
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }
-        .logo {
-            width: 70px; height: 70px; border-radius: 50%;
-            object-fit: cover; border: 3px solid var(--gold-accent);
-        }
-        header h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 2.5rem; color: var(--navy-blue);
-            margin: 0; font-weight: 700;
-        }
-        .home-button {
-            text-decoration: none; background-color: var(--primary-teal); color: var(--white);
-            padding: 10px 25px; border-radius: 50px; font-weight: 500;
-            transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0, 128, 128, 0.2);
-            display: flex; align-items: center; gap: 8px;
-        }
-        .home-button:hover {
-            background-color: var(--dark-teal); transform: translateY(-3px);
-            box-shadow: 0 6px 15px rgba(0, 95, 115, 0.3);
-        }
+/* ==========================================================================
+   2. GENERAL LAYOUT & TYPOGRAPHY
+   ========================================================================== */
 
-        /* --- Search & Action Card --- */
-        .content {
-            background-color: var(--light-gray);
-            padding: 25px; border-radius: 12px;
-            margin-bottom: 30px;
-        }
-        .content h4 {
-            font-size: 1.6rem; color: var(--dark-teal);
-            margin-top: 0; margin-bottom: 20px;
-        }
-        .search-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
-        .search-box {
-            flex-grow: 1; padding: 12px 18px;
-            border: 1px solid var(--gray-border); border-radius: 8px;
-            font-size: 1rem; font-family: 'Sarabun', sans-serif;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        .search-box:focus {
-            border-color: var(--primary-teal); outline: none;
-            box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.15);
-        }
-        
-        /* --- Buttons --- */
-        .action-btn {
-            padding: 12px 25px; border: none; border-radius: 8px;
-            cursor: pointer; font-weight: 500; font-size: 1rem;
-            transition: all 0.3s ease; display: inline-flex;
-            align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-        .find-btn { background-color: var(--primary-teal); color: var(--white); }
-        .find-btn:hover { background-color: var(--dark-teal); }
-        .add-btn { background-color: #28a745; color: var(--white); }
-        .add-btn:hover { background-color: #218838; }
+body {
+    font-family: 'Sarabun', sans-serif;
+    background-color: var(--light-teal-bg);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+}
 
-        /* --- Table Styles --- */
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        thead th {
-            background-color: var(--navy-blue); color: var(--white);
-            padding: 15px; text-align: left; font-size: 1rem;
-        }
-        tbody td {
-            padding: 15px; border-bottom: 1px solid #e0e0e0;
-            color: #333;
-        }
-        tbody tr { transition: background-color 0.2s ease; }
-        tbody tr:nth-child(even) { background-color: var(--light-gray); }
-        tbody tr:hover { background-color: #d4eaf7; }
-        th:first-child, td:first-child { text-align: center; }
-        
-        .delete-btn, .edit-btn, .view-btn {
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            font-family: 'Sarabun', sans-serif;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-        }
-        .delete-btn { background-color: var(--danger); }
-        .edit-btn { background-color: var(--warning); color: var(--secondary-color); }
-        .view-btn { background-color: var(--info); }
-        .delete-btn:hover { background-color: #c0392b; transform: translateY(-1px); }
-        .edit-btn:hover { background-color: #e0a800; transform: translateY(-1px); }
-        .view-btn:hover { background-color: #8e44ad; transform: translateY(-1px); }
-        
-        /* --- MODAL STYLES --- */
-        .modal {
-            display: none; position: fixed; z-index: 1000;
-            left: 0; top: 0; width: 100%; height: 100%;
-            overflow: auto; background-color: rgba(0, 31, 63, 0.6);
-            backdrop-filter: blur(5px);
-            justify-content: center; align-items: center;
-        }
-        .modal-content {
-            background-color: var(--white); margin: auto; padding: 30px 40px;
-            border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            width: 90%; max-width: 550px; position: relative;
-            animation: fadeInScale 0.4s ease-out;
-        }
-        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        
-        .modal-lg .modal-content { max-width: 900px; }
-        
-        .close-btn {
-            color: #aaa; position: absolute; top: 15px; right: 20px;
-            font-size: 2rem; font-weight: bold; cursor: pointer;
-            transition: color 0.2s, transform 0.2s;
-        }
-        .close-btn:hover { color: #dc3545; transform: rotate(90deg); }
-        
-        .modal h3 {
-            font-size: 2rem; color: var(--dark-teal);
-            text-align: center; margin-bottom: 25px;
-        }
-        
-        .modal form label {
-            display: block; margin-bottom: 8px; font-weight: 500;
-            color: var(--secondary-color);
-        }
-        .modal form input, .modal form textarea, .modal form select {
-            width: 100%; padding: 12px; margin-bottom: 20px;
-            border-radius: 8px; border: 1px solid var(--gray-border);
-            font-size: 1rem; font-family: 'Sarabun', sans-serif;
-            transition: all 0.3s;
-        }
-        .modal form input:focus, .modal form textarea:focus, .modal form select:focus {
-            outline: none; border-color: var(--primary-teal);
-            box-shadow: 0 0 8px rgba(0, 128, 128, 0.25);
-        }
-        .modal form button {
-            width: 100%; padding: 12px; font-size: 1.1rem;
-            border: none; border-radius: 8px; cursor: pointer;
-            color: white; font-weight: 500;
-            transition: background-color 0.3s, transform 0.2s;
-        }
-        .modal form button:hover { transform: translateY(-2px); }
-        
-        /* Modal Button Specifics */
-        #customer-modal form button { background-color: var(--primary-teal); }
-        #customer-modal form button:hover { background-color: var(--dark-teal); }
-        
-        /* **แก้ไขแล้ว: เพิ่มสีตัวอักษรให้ปุ่มแก้ไข** */
-        #edit-modal form button { 
-            background-color: var(--warning); 
-            color: var(--secondary-color); /* << เพิ่มบรรทัดนี้ */
-        }
-        #edit-modal form button:hover { background-color: #e0a800; }
-        
-        #orders-modal .filter-controls {
-            display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;
-            background-color: var(--light-gray); padding: 1rem;
-            border-radius: 8px; margin-bottom: 1.5rem;
-        }
-        #orders-modal .filter-controls label { margin-bottom: 0; }
-        #orders-modal .filter-controls select, #orders-modal .filter-controls button {
-            padding: 0.6rem; border: 1px solid var(--gray-border);
-            border-radius: 8px; font-size: 0.9rem;
-        }
-        #orders-modal .filter-controls button {
-            background-color: var(--primary-teal); color: white; cursor: pointer;
-        }
+.container-wrapper {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: var(--white);
+    border-radius: 20px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    padding: 30px 40px;
+}
+
+
+/* ==========================================================================
+   3. HEADER SECTION
+   ========================================================================== */
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--primary-teal);
+    padding-bottom: 20px;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    color: var(--navy-blue);
+    margin: 0;
+    font-weight: 700;
+}
+
+.logo {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--gold-accent);
+}
+
+/* ==========================================================================
+   4. CONTENT CARD & SEARCH
+   ========================================================================== */
+
+.content {
+    background-color: var(--light-gray);
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+}
+
+.content h4 {
+    font-size: 1.6rem;
+    color: var(--dark-teal);
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.search-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.search-box {
+    flex-grow: 1;
+    padding: 12px 18px;
+    border: 1px solid var(--gray-border);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: 'Sarabun', sans-serif;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.search-box:focus {
+    border-color: var(--primary-teal);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.15);
+}
+
+
+/* ==========================================================================
+   5. BUTTON STYLES
+   ========================================================================== */
+
+/* --- General Page Buttons --- */
+.home-button {
+    text-decoration: none;
+    background-color: var(--primary-teal);
+    color: var(--white);
+    padding: 10px 25px;
+    border-radius: 50px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 10px rgba(0, 128, 128, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.home-button:hover {
+    background-color: var(--dark-teal);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 95, 115, 0.3);
+}
+
+/* --- General Action Buttons (Search, Add) --- */
+.action-btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+.find-btn { background-color: var(--primary-teal); color: var(--white); }
+.find-btn:hover { background-color: var(--dark-teal); }
+.add-btn { background-color: #28a745; color: var(--white); }
+.add-btn:hover { background-color: #218838; }
+
+/* --- Table Action Buttons (Edit, Delete, View) --- */
+.delete-btn, .edit-btn, .view-btn {
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+.delete-btn { background-color: var(--danger); }
+.edit-btn { background-color: var(--warning); color: var(--secondary-color); }
+.view-btn { background-color: var(--info); }
+.delete-btn:hover { background-color: #c0392b; transform: translateY(-1px); }
+.edit-btn:hover { background-color: #e0a800; transform: translateY(-1px); }
+.view-btn:hover { background-color: #8e44ad; transform: translateY(-1px); }
+
+/* ==========================================================================
+   6. TABLE STYLES
+   ========================================================================== */
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead th {
+    background-color: var(--navy-blue);
+    color: var(--white);
+    padding: 15px;
+    text-align: left;
+    font-size: 1rem;
+}
+
+tbody td {
+    padding: 15px;
+    border-bottom: 1px solid #e0e0e0;
+    color: #333;
+}
+
+tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+tbody tr:nth-child(even) {
+    background-color: var(--light-gray);
+}
+
+tbody tr:hover {
+    background-color: #d4eaf7;
+}
+
+th:first-child, td:first-child {
+    text-align: center;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 31, 63, 0.6);
+    backdrop-filter: blur(5px);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: var(--white);
+    margin: auto;
+    padding: 30px 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    width: 90%;
+    max-width: 550px;
+    position: relative;
+    animation: fadeInScale 0.4s ease-out;
+}
+
+.modal-lg .modal-content {
+    max-width: 900px;
+}
+/*animetion*/
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* --- Modal Components (Header, Close Button) --- */
+.modal h3 {
+    font-size: 2rem;
+    color: var(--dark-teal);
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.close-btn {
+    color: #aaa;
+    position: absolute;
+    top: 15px; right: 20px;
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.close-btn:hover {
+    color: #dc3545;
+    transform: rotate(90deg);
+}
+
+/* --- Modal Form Elements --- */
+.modal form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--secondary-color);
+}
+
+.modal form input,
+.modal form textarea,
+.modal form select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--gray-border);
+    font-size: 1rem;
+    font-family: 'Sarabun', sans-serif;
+    transition: all 0.3s;
+}
+
+.modal form input:focus,
+.modal form textarea:focus,
+.modal form select:focus {
+    outline: none;
+    border-color: var(--primary-teal);
+    box-shadow: 0 0 8px rgba(0, 128, 128, 0.25);
+}
+
+.modal form button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: white;
+    font-weight: 500;
+    transition: background-color 0.3s, transform 0.2s;
+}
+.modal form button:hover {
+    transform: translateY(-2px);
+}
+
+/* --- Specific Modal Styles --- */
+#customer-modal form button { background-color: var(--primary-teal); }
+#customer-modal form button:hover { background-color: var(--dark-teal); }
+
+#edit-modal form button {
+    background-color: var(--warning);
+    color: var(--secondary-color);
+}
+#edit-modal form button:hover { background-color: #e0a800; }
+
+/* --- Orders Modal Filter --- */
+#orders-modal .filter-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    background-color: var(--light-gray);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+#orders-modal .filter-controls label { margin-bottom: 0; }
+#orders-modal .filter-controls select,
+#orders-modal .filter-controls button {
+    padding: 0.6rem;
+    border: 1px solid var(--gray-border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+#orders-modal .filter-controls button {
+    background-color: var(--primary-teal);
+    color: white;
+    cursor: pointer;
+}
     </style>
 </head>
 <body>
@@ -357,7 +509,7 @@ $result = $conn->query($sql);
             <label>ชื่อ-นามสกุล:</label>
             <input type="text" name="customer_name" required>
             <label>เบอร์โทรศัพท์:</label>
-            <input type="tel" name="customer_phone">
+            <input type="tel" name="customer_phone" maxlength="10">
             <label>ที่อยู่:</label>
             <textarea name="customer_address" rows="3"></textarea>
             <button type="submit"><i class="fas fa-save"></i> บันทึกข้อมูล</button>
@@ -385,7 +537,7 @@ $result = $conn->query($sql);
         <h3 id="orders-customer-name">ประวัติคำสั่งซื้อ</h3>
         <div class="filter-controls">
             <input type="hidden" id="current-customer-id">
-            <label>เดือน:</label>
+            <label>เดือน :</label>
 <select id="filter-month">
     <option value="0">ทั้งหมด</option>
     <?php 
@@ -396,8 +548,7 @@ $result = $conn->query($sql);
     <?php endfor; ?>
 </select>
 
-<label>ปี (พ.ศ.):</label>
-<label>ปี (พ.ศ.):</label>
+<label>ปี :</label>
 <select id="filter-year">
     <option value="0">ทั้งหมด</option>
     <?php 
@@ -443,6 +594,7 @@ $result = $conn->query($sql);
 <script>
 function openModal(modalId) { document.getElementById(modalId).style.display = 'flex'; }
 function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
+
 function openEditModal(id, name, phone, address) {
     document.getElementById('edit-id').value = id;
     document.getElementById('edit-name').value = name;

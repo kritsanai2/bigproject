@@ -20,23 +20,23 @@ function thai_month_name($month){
 // 1. รับค่าตัวกรอง (เหมือนใน dashboard)
 $type_filter = $_GET['type'] ?? '';
 $filter_month = isset($_GET['month']) ? intval($_GET['month']) : 0; 
-$current_year = intval(date('Y'));
-$filter_year = isset($_GET['year']) ? intval($_GET['year']) : $current_year;
+$filter_year = isset($_GET['year']) ? intval($_GET['year']) : 0;
 
 // 2. สร้างหัวข้อรายงาน
-$report_period = "";
-if ($filter_month > 0) $report_period .= "ประจำเดือน " . thai_month_name($filter_month);
-if ($filter_year > 0) $report_period .= " ปี พ.ศ. " . ($filter_year + 543);
-if ($type_filter) $report_period .= " (ประเภท: " . thai_type($type_filter) . ")";
+$report_title = "รายงาน";
+if ($type_filter == 'income') $report_title .= "รายรับ";
+elseif ($type_filter == 'expense') $report_title .= "รายจ่าย";
+else $report_title .= "รายรับ-รายจ่าย";
+if ($filter_month > 0) $report_title .= " เดือน " . thai_month_name($filter_month);
+if ($filter_year > 0) $report_title .= " ปี " . ($filter_year + 543);
+if ($filter_month == 0 && $filter_year == 0) $report_title .= "ทั้งหมด";
 
-$report_title = 'รายงานรายรับ-รายจ่าย' . $report_period;
-
-// 3. ดึงข้อมูล (ใช้ Prepared Statements เหมือนใน dashboard)
-// *** แก้ไข: นำ LEFT JOIN expense_categories และ e.expense_type ออก ***
-$sql = "SELECT t.*, od.product_id, p.product_name
+// 3. ดึงข้อมูลรายการธุรกรรม (SQL เดียวกับ dashboard)
+$sql = "SELECT t.*, od.product_id, p.product_name, o.order_id
         FROM transactions t
         LEFT JOIN order_details od ON t.order_detail_id = od.order_detail_id
-        LEFT JOIN products p ON od.product_id = p.product_id";
+        LEFT JOIN products p ON od.product_id = p.product_id
+        LEFT JOIN orders o ON od.order_id = o.order_id";
 
 $params = [];
 $types = "";
@@ -51,42 +51,70 @@ $sql .= " ORDER BY t.transaction_date DESC, t.transaction_id DESC";
 
 $stmt = $conn->prepare($sql);
 if (!empty($params)) { $stmt->bind_param($types, ...$params); }
-
-// ใช้ die() เพื่อป้องกัน Error 500 หาก Execute ล้มเหลว
-if (!$stmt->execute()) {
-    die("Database query error: " . $stmt->error);
-}
-
+$stmt->execute();
 $result = $stmt->get_result();
 $rows = $result->fetch_all(MYSQLI_ASSOC);
 
-// คำนวณยอดรวม
-$total_income = 0;
+
+// --- (เพิ่มใหม่) ดึงยอดรวมเงินเดือนจากตาราง `salary` ---
+$total_salary_expense = 0;
+if ($type_filter === '' || $type_filter === 'expense') {
+    $salary_sql = "SELECT SUM(total_amount) as total FROM salary";
+    $salary_params = [];
+    $salary_types = "";
+    $salary_where = [];
+
+    if ($filter_month > 0) {
+        $salary_where[] = "MONTH(pay_month) = ?";
+        $salary_params[] = $filter_month;
+        $salary_types .= "i";
+    }
+    if ($filter_year > 0) {
+        $salary_where[] = "YEAR(pay_month) = ?";
+        $salary_params[] = $filter_year;
+        $salary_types .= "i";
+    }
+
+    if (!empty($salary_where)) {
+        $salary_sql .= " WHERE " . implode(" AND ", $salary_where);
+    }
+
+    $stmt_salary = $conn->prepare($salary_sql);
+    if (!empty($salary_params)) {
+        $stmt_salary->bind_param($salary_types, ...$salary_params);
+    }
+    $stmt_salary->execute();
+    $salary_result = $stmt_salary->get_result()->fetch_assoc();
+    $total_salary_expense = $salary_result['total'] ?? 0;
+}
+
+
+// --- (แก้ไข) คำนวณยอดรวม ---
+$total_income = 0; 
 $total_expense = 0;
 foreach($rows as $row){
     if($row['transaction_type'] === 'income'){ $total_income += $row['amount']; } else { $total_expense += $row['amount']; }
 }
+
+// (แก้ไข) นำยอดรวมเงินเดือนมาบวกเพิ่มเข้าไปในรายจ่าย
+$total_expense += $total_salary_expense;
+
 $balance = $total_income - $total_expense;
 
 // 4. สร้างเอกสาร PDF
-$pdf = new FPDF('P'); 
-$pdf->AddFont('THSarabunNew', '', 'THSarabunNew.php'); 
-$pdf = new \FPDF('P'); 
+$pdf = new FPDF('P', 'mm', 'A4'); 
 $pdf->AddFont('THSarabunNew', '', 'THSarabunNew.php'); 
 $pdf->AddFont('THSarabunNew', 'B', 'THSarabunNew.php');
 $pdf->AddPage();
 $pdf->SetFont('THSarabunNew', 'B', 18);
 $pdf->Cell(0, 10, iconv('UTF-8', 'TIS-620', $report_title), 0, 1, 'C');
-$pdf->Ln(2);
+$pdf->Ln(5);
 
 // หัวตาราง
 $pdf->SetFont('THSarabunNew', 'B', 12);
-$pdf->SetFillColor(230, 230, 230);
-$header = ['ลำดับ', 'รหัส', 'วันที่', 'ประเภท', 'จำนวนเงิน (บาท)', 'รายละเอียด'];
-$w = [15, 25, 25, 20, 30, 75]; // ความกว้างแต่ละคอลัมน์
-$align = ['C', 'C', 'C', 'C', 'R', 'L'];
-$grand_w = array_sum($w);
-
+$pdf->SetFillColor(220, 220, 220);
+$header = ['ลำดับ', 'วันที่', 'ประเภท', 'จำนวนเงิน', 'รายละเอียด', 'รหัสสั่งซื้อ'];
+$w = [15, 25, 30, 35, 65, 20]; // ความกว้างแต่ละคอลัมน์
 for($i=0; $i<count($header); $i++) {
     $pdf->Cell($w[$i], 10, iconv('UTF-8', 'TIS-620', $header[$i]), 1, 0, 'C', true);
 }
@@ -98,28 +126,29 @@ $i = 1;
 
 if (!empty($rows)) {
     foreach ($rows as $row) {
-        // *** แก้ไข: ใช้ $row['expense_type'] ที่มีอยู่ในตาราง transactions โดยตรง ***
-        $desc = $row['transaction_type'] == 'expense' ? ($row['expense_type'] ?? '-') : (!empty($row['product_name']) ? "ขาย: " . $row['product_name'] : 'รายรับจากออเดอร์');
+        $desc = $row['transaction_type'] == 'expense' ? ($row['expense_type'] ?? '-') : ($row['product_name'] ?? '-');
+        $date_be = date('d/m/', strtotime($row['transaction_date'])) . (date('Y', strtotime($row['transaction_date'])) + 543);
         
         $pdf->Cell($w[0], 8, $i++, 1, 0, 'C');
-        $pdf->Cell($w[1], 8, iconv('UTF-8', 'TIS-620', $row['transaction_id']), 1, 0, 'C');
-        $pdf->Cell($w[2], 8, date('d/m/Y', strtotime($row['transaction_date'])), 1, 0, 'C');
-        $pdf->Cell($w[3], 8, iconv('UTF-8', 'TIS-620', thai_type($row['transaction_type'])), 1, 0, 'C');
-        $pdf->Cell($w[4], 8, number_format($row['amount'], 2), 1, 0, 'R');
-        $pdf->Cell($w[5], 8, iconv('UTF-8', 'TIS-620', $desc), 1, 1, 'L');
+        $pdf->Cell($w[1], 8, $date_be, 1, 0, 'C');
+        $pdf->Cell($w[2], 8, iconv('UTF-8', 'TIS-620', thai_type($row['transaction_type'])), 1, 0, 'C');
+        $pdf->Cell($w[3], 8, number_format($row['amount'], 2), 1, 0, 'R');
+        $pdf->Cell($w[4], 8, iconv('UTF-8', 'TIS-620', $desc), 1, 0, 'L');
+        $pdf->Cell($w[5], 8, iconv('UTF-8', 'TIS-620', $row['order_id'] ?? '-'), 1, 1, 'C');
     }
     
-    // แถวสรุป
+    // แถวสรุป (จะใช้ค่าที่คำนวณใหม่โดยอัตโนมัติ)
     $pdf->SetFont('THSarabunNew', 'B', 12);
-    $pdf->SetFillColor(200, 200, 200);
-    $pdf->Cell($w[0]+$w[1]+$w[2]+$w[3], 10, iconv('UTF-8', 'TIS-620', 'ยอดรวมรายรับ/รายจ่าย/คงเหลือ'), 1, 0, 'R', true);
-    
-    // Summary data for balance card
-    $pdf->Cell($w[4], 10, iconv('UTF-8', 'TIS-620', 'รับ: '.number_format($total_income, 2)), 1, 0, 'R', true);
-    $pdf->Cell($w[5], 10, iconv('UTF-8', 'TIS-620', 'จ่าย: '.number_format($total_expense, 2) . ' / คงเหลือ: ' . number_format($balance, 2)), 1, 1, 'R', true);
+    $pdf->Cell(array_sum($w), 0.5, '', 'T', 1); // เส้นคั่น
+    $pdf->Cell(70, 8, iconv('UTF-8', 'TIS-620', 'ยอดรวมรายรับ'), 'LBR', 0, 'R');
+    $pdf->Cell(120, 8, number_format($total_income, 2) . iconv('UTF-8', 'TIS-620', ' บาท'), 'BR', 1, 'L');
+    $pdf->Cell(70, 8, iconv('UTF-8', 'TIS-620', 'ยอดรวมรายจ่าย'), 'LBR', 0, 'R');
+    $pdf->Cell(120, 8, number_format($total_expense, 2) . iconv('UTF-8', 'TIS-620', ' บาท'), 'BR', 1, 'L');
+    $pdf->Cell(70, 8, iconv('UTF-8', 'TIS-620', 'ยอดคงเหลือ'), 'LBR', 0, 'R');
+    $pdf->Cell(120, 8, number_format($balance, 2) . iconv('UTF-8', 'TIS-620', ' บาท'), 'BR', 1, 'L');
     
 } else {
-    $pdf->Cell($grand_w, 10, iconv('UTF-8', 'TIS-620', 'ไม่พบข้อมูลตามเงื่อนไขที่เลือก'), 1, 1, 'C');
+    $pdf->Cell(array_sum($w), 10, iconv('UTF-8', 'TIS-620', 'ไม่พบข้อมูลตามเงื่อนไขที่เลือก'), 1, 1, 'C');
 }
 
 ob_end_clean();

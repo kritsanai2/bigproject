@@ -1,6 +1,6 @@
 <?php
-require_once "db.php"; // เรียกไฟล์เชื่อมต่อฐานข้อมูล
-require_once __DIR__ . '/includes/auth.php';
+require_once "auth.php";
+require_once "db.php";
 
 $selected_month = $_POST['month'] ?? date('Y-m'); // YYYY-MM
 $daily_rate = 300; // วันเต็ม
@@ -33,14 +33,48 @@ while($row = $attendances->fetch_assoc()){
 <title>📝 สรุปการเช็คชื่อและเงินเดือน</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-body { font-family: 'Sarabun', sans-serif; padding:30px; background:#f0f4f8; }
-h2 { text-align:center; color:#2d3436; margin-bottom:20px; }
+/* ====================== Global Styles ====================== */
+body {
+    font-family: 'Sarabun', sans-serif;
+    padding: 30px;
+    background: #f0f4f8;
+}
 
-form { text-align:center; margin-bottom:25px; }
-input[type="month"] { padding:8px 12px; font-size:16px; border:1px solid #ccc; border-radius:5px; }
-button { padding:8px 16px; font-size:16px; border:none; border-radius:5px; background:#00b894; color:#fff; cursor:pointer; transition:0.3s; }
-button:hover { background:#019875; }
+h2 {
+    text-align: center;
+    color: #2d3436;
+    margin-bottom: 20px;
+}
 
+/* ====================== Form Styles ====================== */
+form {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+input[type="month"] {
+    padding: 8px 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+button {
+    padding: 8px 16px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    background: #00b894;
+    color: #fff;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #019875;
+}
+
+/* ====================== Table Styles ====================== */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -72,26 +106,43 @@ tr:hover td {
 }
 
 tfoot td {
-    font-weight:bold;
-    background:#dfe6e9;
-    color:#2d3436;
+    font-weight: bold;
+    background: #dfe6e9;
+    color: #2d3436;
 }
 
-@media screen and (max-width: 1024px){
-    table, thead, tbody, th, td, tr { display:block; }
-    thead tr { display:none; }
-    tr { margin-bottom:15px; border-bottom:2px solid #ccc; }
-    td { text-align:right; padding-left:50%; position:relative; }
+/* ====================== Responsive Table ====================== */
+@media screen and (max-width: 1024px) {
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+
+    thead tr {
+        display: none;
+    }
+
+    tr {
+        margin-bottom: 15px;
+        border-bottom: 2px solid #ccc;
+    }
+
+    td {
+        text-align: right;
+        padding-left: 50%;
+        position: relative;
+    }
+
     td::before {
         content: attr(data-label);
-        position:absolute;
-        left:15px;
-        width:45%;
-        padding-left:10px;
-        font-weight:bold;
-        text-align:left;
+        position: absolute;
+        left: 15px;
+        width: 45%;
+        padding-left: 10px;
+        font-weight: bold;
+        text-align: left;
     }
 }
+
 </style>
 </head>
 <body>

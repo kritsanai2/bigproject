@@ -1,7 +1,7 @@
 <?php
 session_start();
+require_once "auth.php";
 require_once "db.php";
-require_once __DIR__ . '/includes/auth.php';
 
 // ====================== Sync รายการสต็อกจาก order_details (นำออก) ======================
 $conn->query("
@@ -16,17 +16,6 @@ $conn->query("
             AND s.stock_type = 'remove'
     )
 ");
-
-// ================== ลบข้อมูล (Hard Delete) ==================
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['delete_id'])) {
-    $delete_id = intval($_POST['delete_id']);
-    $stmt = $conn->prepare("DELETE FROM stock WHERE stock_id = ?");
-    $stmt->bind_param("i", $delete_id);
-    $stmt->execute();
-    $_SESSION['alert'] = ['type' => 'success', 'message' => 'ลบข้อมูลสต็อกเรียบร้อย'];
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
-}
 
 // ================== เพิ่มข้อมูลสต็อก ==================
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_stock'])) {
@@ -104,148 +93,438 @@ if ($balances_result) {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ข้อมูลคลังสินค้า</title>
+    <title>จัดการข้อมูลคลังสินค้า</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+      /* ==========================
+   📌 Import Fonts
+========================== */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
 
-        :root {
-            --primary-color: #3498db;
-            --secondary-color: #2c3e50;
-            --light-teal-bg: #eaf6f6;
-            --navy-blue: #001f3f;
-            --gold-accent: #fca311;
-            --white: #ffffff;
-            --light-gray: #f8f9fa;
-            --gray-border: #ced4da;
-            --text-color: #495057;
-            --success: #2ecc71;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-        }
+/* ==========================
+   🎨 CSS Variables
+========================== */
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2c3e50;
+    --light-teal-bg: #eaf6f6;
+    --navy-blue: #001f3f;
+    --gold-accent: #fca311;
+    --white: #ffffff;
+    --light-gray: #f8f9fa;
+    --gray-border: #ced4da;
+    --text-color: #495057;
+    --success: #2ecc71;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+}
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Sarabun', sans-serif;
-            background-color: var(--light-teal-bg);
-            color: var(--text-color);
-            display: flex;
-        }
+/* ==========================
+   🌍 Global Reset
+========================== */
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+}
 
-        /* --- Sidebar (คงสไตล์เดิมไว้) --- */
-        .sidebar { width: 250px; background-color: var(--primary-color); color: white; padding: 2rem 1.5rem; height: 100vh; position: fixed; top: 0; left: 0; transition: transform 0.3s ease-in-out; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; z-index: 1000; }
-        .sidebar.hidden { transform: translateX(-100%); }
-        .logo { width: 100px; height: 100px; border-radius: 50%; border: 4px solid rgba(255, 255, 255, 0.3); object-fit: cover; margin-bottom: 1.5rem; }
-        .sidebar h2 { font-size: 1.5rem; margin-bottom: 2rem; font-weight: 700; text-align: center; border-bottom: none; padding-bottom: 0; color: white; }
-        .sidebar a { color: white; text-decoration: none; font-size: 1.1rem; padding: 0.8rem 1.5rem; border-radius: 8px; width: 100%; text-align: left; transition: background-color 0.2s ease, transform 0.2s ease; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem; }
-        .sidebar a:hover { background-color: rgba(255, 255, 255, 0.2); transform: translateX(5px); }
-        .sidebar a.active { background-color: rgba(255, 255, 255, 0.3); font-weight: 500; }
-        .toggle-btn { position: fixed; top: 1rem; right: 1rem; z-index: 1001; background-color: var(--primary-color); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; justify-content: center; align-items: center; }
+body {
+    font-family: 'Sarabun', sans-serif;
+    background-color: var(--light-teal-bg);
+    color: var(--text-color);
+    display: flex;
+}
 
-        /* --- Main Content Layout --- */
-        .content { margin-left: 250px; padding: 2rem; flex-grow: 1; transition: margin-left 0.3s ease-in-out; }
-        .content.full-width { margin-left: 0; }
-        
-        /* --- Header --- */
-        .header-main {
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .header-main h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: 2.5rem; color: var(--navy-blue);
-            margin: 0; border: none;
-            display: flex; align-items: center; gap: 1rem;
-        }
+/* ==========================
+   📂 Sidebar
+========================== */
+.sidebar { 
+    width: 250px; 
+    background-color: var(--primary-color); 
+    color: white; 
+    padding: 2rem 1.5rem; 
+    height: 100vh; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    transition: transform 0.3s ease-in-out; 
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1); 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    z-index: 1000; 
+}
 
-        /* --- Balance Cards --- */
-        .balance-container { display: flex; gap: 1.5rem; margin-bottom: 2rem; justify-content: center; flex-wrap: wrap; }
-        .balance-card {
-            background: linear-gradient(135deg, var(--primary-color), #5dade2);
-            border-radius: 12px; box-shadow: 0 6px 15px rgba(52, 152, 219, 0.3);
-            padding: 1.5rem; display: flex; align-items: center;
-            gap: 1.5rem; flex: 1; min-width: 280px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            color: var(--white);
-        }
-        .balance-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(52, 152, 219, 0.4); }
-        .balance-icon {
-            background-color: rgba(255,255,255,0.2);
-            width: 60px; height: 60px; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 2rem;
-        }
-        .balance-info { text-align: right; flex-grow: 1; }
-        .balance-type { font-size: 1rem; font-weight: 500; opacity: 0.9; }
-        .balance-value { font-size: 2.5rem; font-weight: 700; }
+.sidebar.hidden { transform: translateX(-100%); }
 
-        /* --- Search & Actions --- */
-        .container { background-color: var(--white); padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        .search-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap; }
-        .search-box {
-            flex-grow: 1; padding: 0.8rem 1rem; border-radius: 8px;
-            border: 1px solid var(--gray-border); font-size: 1rem;
-            transition: all 0.3s;
-        }
-        .search-box:focus {
-            outline: none; border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
-        }
-        .action-btn {
-            padding: 0.8rem 1.5rem; border: none; border-radius: 8px;
-            font-weight: 500; cursor: pointer; color: white; font-size: 1rem;
-            display: flex; align-items: center; gap: 0.5rem;
-            transition: all 0.2s;
-        }
-        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .find-btn { background-color: var(--primary-color); }
-        .find-btn:hover { background-color: #2980b9; }
-        .add-btn { background-color: var(--success); }
-        .add-btn:hover { background-color: #27ae60; }
+.logo { 
+    width: 100px; 
+    height: 100px; 
+    border-radius: 50%; 
+    border: 4px solid rgba(255, 255, 255, 0.3); 
+    object-fit: cover; 
+    margin-bottom: 1.5rem; 
+}
 
-        /* --- Table --- */
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; }
-        thead th {
-            background-color: var(--navy-blue); color: var(--white);
-            padding: 15px; text-align: left; font-size: 0.9rem;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        tbody td {
-            padding: 15px; border-bottom: 1px solid #e0e0e0; color: #333;
-        }
-        tbody tr { transition: background-color 0.2s ease; }
-        tbody tr:nth-child(even) { background-color: var(--light-gray); }
-        tbody tr:hover { background-color: #d4eaf7; }
-        
-        .btn-group { display: flex; gap: 0.5rem; justify-content: center; }
-        .btn-action { border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: white; transition: transform 0.2s ease; white-space: nowrap; }
-        .btn-action:hover { transform: translateY(-2px); }
-        .btn-delete { background-color: var(--danger); }
-        .btn-delete:hover { background-color: #c0392b; }
-        .btn-edit { background-color: var(--warning); color: #212529; }
-        .btn-edit:hover { background-color: #e67e22; }
+.sidebar h2 { 
+    font-size: 1.5rem; 
+    margin-bottom: 2rem; 
+    font-weight: 700; 
+    text-align: center; 
+    color: white; 
+}
 
-        /* --- Modal --- */
-        .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 31, 63, 0.6); backdrop-filter: blur(5px); justify-content: center; align-items: center; }
-        .modal-content { background-color: var(--white); margin: auto; padding: 30px 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 90%; max-width: 550px; position: relative; animation: fadeInScale 0.4s ease-out; }
-        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        .close-btn { color: #aaa; position: absolute; top: 15px; right: 20px; font-size: 2rem; font-weight: bold; cursor: pointer; transition: color 0.2s, transform 0.2s; }
-        .close-btn:hover { color: var(--danger); transform: rotate(90deg); }
-        .modal h3 { font-size: 2rem; color: var(--dark-teal); text-align: center; margin-bottom: 25px; }
-        .modal form { display: flex; flex-direction: column; gap: 5px; }
-        .modal form label { display: block; margin-top: 10px; margin-bottom: 5px; font-weight: 500; color: var(--secondary-color); }
-        .modal form input, .modal form select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--gray-border); font-size: 1rem; font-family: 'Sarabun', sans-serif; transition: all 0.3s; }
-        .modal form input:focus, .modal form select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 8px rgba(52, 152, 219, 0.25); }
-        .modal form button { width: 100%; padding: 12px; font-size: 1.1rem; margin-top: 20px; border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: 500; transition: background-color 0.3s, transform 0.2s; }
-        #addModal button { background-color: var(--success); }
-        #addModal button:hover { background-color: #27ae60; }
-        #editModal button { background-color: var(--warning); color:#212529; }
-        #editModal button:hover { background-color: #e67e22; }
+.sidebar a { 
+    color: white; 
+    text-decoration: none; 
+    font-size: 1.1rem; 
+    padding: 0.8rem 1.5rem; 
+    border-radius: 8px; 
+    width: 100%; 
+    text-align: left; 
+    transition: background-color 0.2s ease, transform 0.2s ease; 
+    margin-bottom: 0.5rem; 
+    display: flex; 
+    align-items: center; 
+    gap: 0.75rem; 
+}
 
+.sidebar a:hover { 
+    background-color: rgba(255, 255, 255, 0.2); 
+    transform: translateX(5px); 
+}
+
+.sidebar a.active { 
+    background-color: rgba(255, 255, 255, 0.3); 
+    font-weight: 500; 
+}
+
+/* Toggle Button */
+.toggle-btn { 
+    position: fixed; 
+    top: 1rem; 
+    right: 1rem; 
+    z-index: 1001; 
+    background-color: var(--primary-color); 
+    color: white; 
+    border: none; 
+    border-radius: 50%; 
+    width: 40px; 
+    height: 40px; 
+    font-size: 1.5rem; 
+    cursor: pointer; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+}
+
+/* ==========================
+   📑 Main Content Layout
+========================== */
+.content { 
+    margin-left: 250px; 
+    padding: 2rem; 
+    flex-grow: 1; 
+    transition: margin-left 0.3s ease-in-out; 
+}
+
+.content.full-width { margin-left: 0; }
+
+/* ==========================
+   🏷️ Header
+========================== */
+.header-main {
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.header-main h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem; 
+    color: var(--navy-blue);
+    margin: 0; 
+    display: flex; 
+    align-items: center; 
+    gap: 1rem;
+}
+
+/* ==========================
+   💳 Balance Cards
+========================== */
+.balance-container { 
+    display: flex; 
+    gap: 1.5rem; 
+    margin-bottom: 2rem; 
+    justify-content: center; 
+    flex-wrap: wrap; 
+}
+
+.balance-card {
+    background: linear-gradient(135deg, var(--primary-color), #5dade2);
+    border-radius: 12px; 
+    box-shadow: 0 6px 15px rgba(52, 152, 219, 0.3);
+    padding: 1.5rem; 
+    display: flex; 
+    align-items: center;
+    gap: 1.5rem; 
+    flex: 1; 
+    min-width: 280px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    color: var(--white);
+}
+
+.balance-card:hover { 
+    transform: translateY(-5px); 
+    box-shadow: 0 10px 20px rgba(52, 152, 219, 0.4); 
+}
+
+.balance-icon {
+    background-color: rgba(255,255,255,0.2);
+    width: 60px; 
+    height: 60px; 
+    border-radius: 50%;
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    font-size: 2rem;
+}
+
+.balance-info { 
+    text-align: right; 
+    flex-grow: 1; 
+}
+
+.balance-type { 
+    font-size: 1rem; 
+    font-weight: 500; 
+    opacity: 0.9; 
+}
+
+.balance-value { 
+    font-size: 2.5rem; 
+    font-weight: 700; 
+}
+
+/* ==========================
+   🔎 Search & Actions
+========================== */
+.container { 
+    background-color: var(--white); 
+    padding: 1.5rem; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
+}
+
+.search-row { 
+    display: flex; 
+    gap: 1rem; 
+    margin-bottom: 1.5rem; 
+    align-items: center; 
+    flex-wrap: wrap; 
+}
+
+.search-box {
+    flex-grow: 1; 
+    padding: 0.8rem 1rem; 
+    border-radius: 8px;
+    border: 1px solid var(--gray-border); 
+    font-size: 1rem;
+    transition: all 0.3s;
+}
+
+.search-box:focus {
+    outline: none; 
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+/* Buttons */
+.action-btn {
+    padding: 0.8rem 1.5rem; 
+    border: none; 
+    border-radius: 8px;
+    font-weight: 500; 
+    cursor: pointer; 
+    color: white; 
+    font-size: 1rem;
+    display: flex; 
+    align-items: center; 
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.action-btn:hover { 
+    transform: translateY(-2px); 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+}
+
+.find-btn { background-color: var(--primary-color); }
+.find-btn:hover { background-color: #2980b9; }
+.add-btn { background-color: var(--success); }
+.add-btn:hover { background-color: #27ae60; }
+
+/* ==========================
+   📊 Table
+========================== */
+.table-wrapper { overflow-x: auto; }
+
+table { 
+    width: 100%; 
+    border-collapse: collapse; 
+}
+
+thead th {
+    background-color: var(--navy-blue); 
+    color: var(--white);
+    padding: 15px; 
+    text-align: left; 
+    font-size: 0.9rem;
+    text-transform: uppercase; 
+    letter-spacing: 0.5px;
+}
+
+tbody td {
+    padding: 15px; 
+    border-bottom: 1px solid #e0e0e0; 
+    color: #333;
+}
+
+tbody tr { transition: background-color 0.2s ease; }
+tbody tr:nth-child(even) { background-color: var(--light-gray); }
+tbody tr:hover { background-color: #d4eaf7; }
+
+/* Action Buttons in Table */
+.btn-group { 
+    display: flex; 
+    gap: 0.5rem; 
+    justify-content: center; 
+}
+
+.btn-action { 
+    border: none; 
+    padding: 0.5rem 1rem; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    font-size: 0.9rem; 
+    color: white; 
+    transition: transform 0.2s ease; 
+    white-space: nowrap; 
+}
+
+.btn-action:hover { transform: translateY(-2px); }
+.btn-edit { background-color: var(--warning); color: #212529; }
+.btn-edit:hover { background-color: #e67e22; }
+
+/* ==========================
+   📌 Modal
+========================== */
+.modal { 
+    display: none; 
+    position: fixed; 
+    z-index: 1001; 
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0, 31, 63, 0.6); 
+    backdrop-filter: blur(5px); 
+    justify-content: center; 
+    align-items: center; 
+}
+
+.modal-content { 
+    background-color: var(--white); 
+    margin: auto; 
+    padding: 30px 40px; 
+    border-radius: 15px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+    width: 90%; 
+    max-width: 550px; 
+    position: relative; 
+    animation: fadeInScale 0.4s ease-out; 
+}
+
+@keyframes fadeInScale { 
+    from { opacity: 0; transform: scale(0.9); } 
+    to { opacity: 1; transform: scale(1); } 
+}
+
+.close-btn { 
+    color: #aaa; 
+    position: absolute; 
+    top: 15px; 
+    right: 20px; 
+    font-size: 2rem; 
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: color 0.2s, transform 0.2s; 
+}
+
+.close-btn:hover { 
+    color: var(--danger); 
+    transform: rotate(90deg); 
+}
+
+.modal h3 { 
+    font-size: 2rem; 
+    color: var(--navy-blue); 
+    text-align: center; 
+    margin-bottom: 25px; 
+}
+
+.modal form { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 5px; 
+}
+
+.modal form label { 
+    margin-top: 10px; 
+    margin-bottom: 5px; 
+    font-weight: 500; 
+    color: var(--secondary-color); 
+}
+
+.modal form input, 
+.modal form select { 
+    width: 100%; 
+    padding: 12px; 
+    border-radius: 8px; 
+    border: 1px solid var(--gray-border); 
+    font-size: 1rem; 
+    font-family: 'Sarabun', sans-serif; 
+    transition: all 0.3s; 
+}
+
+.modal form input:focus, 
+.modal form select:focus { 
+    outline: none; 
+    border-color: var(--primary-color); 
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.25); 
+}
+
+.modal form button { 
+    width: 100%; 
+    padding: 12px; 
+    font-size: 1.1rem; 
+    margin-top: 20px; 
+    border: none; 
+    border-radius: 8px; 
+    cursor: pointer; 
+    color: white; 
+    font-weight: 500; 
+    transition: background-color 0.3s, transform 0.2s; 
+}
+
+#addModal button { background-color: var(--success); }
+#addModal button:hover { background-color: #27ae60; }
+#editModal button { background-color: var(--warning); color:#212529; }
+#editModal button:hover { background-color: #e67e22; }
     </style>
 </head>
 <body>
@@ -254,7 +533,7 @@ if ($balances_result) {
 
 <div class="sidebar" id="sidebar">
     <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-    <h2>ข้อมูลคลังสินค้า</h2>
+    <h2>จัดการข้อมูลคลังสินค้า</h2>
     <a href="index.php"><i class="fas fa-home"></i>&nbsp; <span>หน้าหลัก</span></a>
     <a href="stock.php?filter=all" class="<?= $filter == 'all' ? 'active' : '' ?>"><i class="fas fa-list"></i>&nbsp; <span>ทั้งหมด</span></a>
     <a href="stock.php?filter=import" class="<?= $filter == 'import' ? 'active' : '' ?>"><i class="fas fa-arrow-down"></i>&nbsp; <span>นำเข้า</span></a>
@@ -263,7 +542,7 @@ if ($balances_result) {
 
 <div class="content" id="content">
     <div class="header-main">
-        <h2><i class="fas fa-warehouse"></i> ภาพรวมคลังสินค้า</h2>
+        <h2><i class="fas fa-warehouse"></i>จัดการข้อมูลคลังสินค้า</h2>
     </div>
 
     <div class="balance-container">
@@ -323,12 +602,6 @@ if ($balances_result) {
                         <td style="text-align:center;"><?= $row['order_id'] ?? '-' ?></td>
                         <td>
                             <div class="btn-group">
-                                <form method="POST" onsubmit="confirmDelete(event, this)">
-                                    <input type="hidden" name="delete_id" value="<?= $row['stock_id'] ?>" />
-                                    <button type="submit" class="btn-action btn-delete">
-                                        <i class="fas fa-trash-alt"></i> ลบ
-                                    </button>
-                                </form>
                                 <?php if($row['stock_type'] == 'import'): ?>
                                 <button class="btn-action btn-edit" onclick='openEditModal(<?= json_encode($row) ?>)'>
                                     <i class="fas fa-edit"></i> แก้ไข
@@ -413,24 +686,6 @@ if ($balances_result) {
         openModal('editModal');
     }
     
-    function confirmDelete(event, form) {
-        event.preventDefault(); 
-        Swal.fire({
-            title: 'ยืนยันการลบ',
-            text: "คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้ออกจากระบบอย่างถาวร?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'ใช่, ลบเลย',
-            cancelButtonText: 'ยกเลิก'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                form.submit();
-            }
-        });
-    }
-
     function searchStock() {
         const input = document.getElementById('search-input');
         const filter = input.value.toUpperCase();
@@ -466,14 +721,12 @@ if ($balances_result) {
     
     window.onclick = function(event) {
         if (event.target.classList.contains('modal')) {
-            // Check if the modal exists before trying to close it
             if (document.getElementById(event.target.id)) {
                 closeModal(event.target.id);
             }
         }
     }
     
-    // SweetAlert for session messages
     <?php if(isset($_SESSION['alert'])): ?>
     Swal.fire({
         icon: '<?= $_SESSION['alert']['type'] ?>',

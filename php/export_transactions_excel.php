@@ -9,29 +9,31 @@ require_once 'db.php';
 function thai_type($type){
     return strtolower($type) === 'income' ? 'รายรับ' : 'รายจ่าย';
 }
-function thai_month_name_excel($month){
-    $months = [1=>'ม.ค.',2=>'ก.พ.',3=>'มี.ค.',4=>'เม.ย.',5=>'พ.ค.',6=>'มิ.ย.',7=>'ก.ค.',8=>'ส.ค.',9=>'ก.ย.',10=>'ต.ค.',11=>'พ.ย.',12=>'ธ.ค.'];
+function thai_month_name($month){
+    $months = [1=>'มกราคม',2=>'กุมภาพันธ์',3=>'มีนาคม',4=>'เมษายน',5=>'พฤษภาคม',6=>'มิถุนายน',7=>'กรกฎาคม',8=>'สิงหาคม',9=>'กันยายน',10=>'ตุลาคม',11=>'พฤศจิกายน',12=>'ธันวาคม'];
     return $months[intval($month)] ?? '';
 }
 
 // 1. รับค่าตัวกรอง
 $type_filter = $_GET['type'] ?? '';
 $filter_month = isset($_GET['month']) ? intval($_GET['month']) : 0; 
-$current_year = intval(date('Y'));
-$filter_year = isset($_GET['year']) ? intval($_GET['year']) : $current_year;
+$filter_year = isset($_GET['year']) ? intval($_GET['year']) : 0;
 
 // 2. สร้างหัวข้อรายงาน
-$report_period = "";
-if ($filter_month > 0) $report_period .= "ประจำเดือน " . thai_month_name_excel($filter_month);
-if ($filter_year > 0) $report_period .= " ปี พ.ศ. " . ($filter_year + 543);
-if ($type_filter) $report_period .= " (ประเภท: " . thai_type($type_filter) . ")";
-$report_title = 'รายงานรายรับ-รายจ่าย' . $report_period;
+$report_title = "รายงาน";
+if ($type_filter == 'income') $report_title .= "รายรับ";
+elseif ($type_filter == 'expense') $report_title .= "รายจ่าย";
+else $report_title .= "รายรับ-รายจ่าย";
+if ($filter_month > 0) $report_title .= " เดือน " . thai_month_name($filter_month);
+if ($filter_year > 0) $report_title .= " ปี " . ($filter_year + 543);
+if ($filter_month == 0 && $filter_year == 0) $report_title .= "ทั้งหมด";
 
-// 3. ดึงข้อมูล (แก้ไข SQL)
-$sql = "SELECT t.*, od.product_id, p.product_name
+// 3. ดึงข้อมูลรายการธุรกรรม
+$sql = "SELECT t.*, od.product_id, p.product_name, o.order_id
         FROM transactions t
         LEFT JOIN order_details od ON t.order_detail_id = od.order_detail_id
-        LEFT JOIN products p ON od.product_id = p.product_id"; // ไม่ JOIN expense_categories
+        LEFT JOIN products p ON od.product_id = p.product_id
+        LEFT JOIN orders o ON od.order_id = o.order_id";
 
 $params = [];
 $types = "";
@@ -47,25 +49,61 @@ $sql .= " ORDER BY t.transaction_date DESC, t.transaction_id DESC";
 $stmt = $conn->prepare($sql);
 if (!empty($params)) { $stmt->bind_param($types, ...$params); }
 $stmt->execute();
-$result_sales = $stmt->get_result();
-$rows = $result_sales->fetch_all(MYSQLI_ASSOC);
+$result = $stmt->get_result();
+$rows = $result->fetch_all(MYSQLI_ASSOC);
 
-// คำนวณยอดรวม
-$total_income = 0;
+
+// --- (เพิ่มใหม่) ดึงยอดรวมเงินเดือนจากตาราง `salary` ---
+$total_salary_expense = 0;
+if ($type_filter === '' || $type_filter === 'expense') {
+    $salary_sql = "SELECT SUM(total_amount) as total FROM salary";
+    $salary_params = [];
+    $salary_types = "";
+    $salary_where = [];
+
+    if ($filter_month > 0) {
+        $salary_where[] = "MONTH(pay_month) = ?";
+        $salary_params[] = $filter_month;
+        $salary_types .= "i";
+    }
+    if ($filter_year > 0) {
+        $salary_where[] = "YEAR(pay_month) = ?";
+        $salary_params[] = $filter_year;
+        $salary_types .= "i";
+    }
+
+    if (!empty($salary_where)) {
+        $salary_sql .= " WHERE " . implode(" AND ", $salary_where);
+    }
+
+    $stmt_salary = $conn->prepare($salary_sql);
+    if (!empty($salary_params)) {
+        $stmt_salary->bind_param($salary_types, ...$salary_params);
+    }
+    $stmt_salary->execute();
+    $salary_result = $stmt_salary->get_result()->fetch_assoc();
+    $total_salary_expense = $salary_result['total'] ?? 0;
+}
+
+
+// --- (แก้ไข) คำนวณยอดรวม ---
+$total_income = 0; 
 $total_expense = 0;
 foreach($rows as $row){
     if($row['transaction_type'] === 'income'){ $total_income += $row['amount']; } else { $total_expense += $row['amount']; }
 }
-$balance = $total_income - $total_expense;
 
+// (แก้ไข) นำยอดรวมเงินเดือนมาบวกเพิ่มเข้าไปในรายจ่าย
+$total_expense += $total_salary_expense;
+
+$balance = $total_income - $total_expense;
 
 // 4. สร้างและส่งออกไฟล์ CSV
 $filename = "transactions_report_" . date('Ymd') . ".csv";
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 
-// BOM (Byte Order Mark) สำหรับ UTF-8
-echo "\xEF\xBB\xBF"; 
+echo "\xEF\xBB\xBF"; // BOM (Byte Order Mark) สำหรับ UTF-8
 
 $output = fopen('php://output', 'w');
 
@@ -74,29 +112,31 @@ fputcsv($output, [$report_title]);
 fputcsv($output, []); // บรรทัดว่าง
 
 // เขียนหัวตาราง
-fputcsv($output, ['ลำดับ', 'รหัส', 'วันที่', 'ประเภท', 'จำนวนเงิน (บาท)', 'รายละเอียด']);
+fputcsv($output, ['ลำดับ', 'ประเภท', 'จำนวนเงิน (บาท)', 'วันที่', 'รายละเอียด', 'รหัสสั่งซื้อ']);
 
 // เขียนข้อมูล
 $i = 1;
 if (!empty($rows)) {
     foreach ($rows as $row) {
-        // ใช้ $row['expense_type'] ที่มีอยู่ในตาราง transactions โดยตรง
-        $desc = $row['transaction_type'] == 'expense' ? ($row['expense_type'] ?? '-') : (!empty($row['product_name']) ? "ขาย: " . $row['product_name'] : 'รายรับจากออเดอร์');
+        $desc = $row['transaction_type'] == 'expense' ? ($row['expense_type'] ?? '-') : ($row['product_name'] ?? '-');
+        $date_be = date('d/m/', strtotime($row['transaction_date'])) . (date('Y', strtotime($row['transaction_date'])) + 543);
         
         fputcsv($output, [
             $i++, 
-            $row['transaction_id'], 
-            date('d/m/Y', strtotime($row['transaction_date']) + 543),
             thai_type($row['transaction_type']), 
             number_format($row['amount'], 2), 
-            $desc
+            $date_be,
+            $desc,
+            $row['order_id'] ?? '-'
         ]);
     }
     
-    // แถวสรุป
-    fputcsv($output, []);
-    fputcsv($output, ['สรุปยอดรวม:', '', '', 'รายรับรวม', 'รายจ่ายรวม', 'ยอดคงเหลือ']);
-    fputcsv($output, ['', '', '', number_format($total_income, 2), number_format($total_expense, 2), number_format($balance, 2)]);
+    // แถวสรุป (จะใช้ค่าที่คำนวณใหม่โดยอัตโนมัติ)
+    fputcsv($output, []); // บรรทัดว่าง
+    fputcsv($output, ['สรุปยอดรวม']);
+    fputcsv($output, ['ยอดรวมรายรับ', number_format($total_income, 2)]);
+    fputcsv($output, ['ยอดรวมรายจ่าย', number_format($total_expense, 2)]);
+    fputcsv($output, ['ยอดคงเหลือ', number_format($balance, 2)]);
 }
 
 fclose($output);

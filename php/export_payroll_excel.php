@@ -5,48 +5,52 @@ error_reporting(E_ALL);
 
 require_once 'db.php'; 
 
+// --- ค่าคงที่ ---
+define('FULL_RATE', 300);
+define('HALF_RATE', 150);
 
-// กำหนดค่าแรงต่อวัน
-$full_rate = 300;
-$half_rate = 150;
-
-// ฟังก์ชันช่วย
-function thai_month_name_excel($month_year) {
-    $parts = explode('-', $month_year);
-    if (count($parts) !== 2) return $month_year;
-    $y = (int)$parts[0];
-    $m = (int)$parts[1];
-    $months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-    return 'ประจำเดือน ' . $months[$m - 1] . ' ' . ($y + 543);
+// --- ฟังก์ชันช่วยเหลือ ---
+function thai_month_name($month_num) {
+    $months = [1=>'มกราคม', 2=>'กุมภาพันธ์', 3=>'มีนาคม', 4=>'เมษายน', 5=>'พฤษภาคม', 6=>'มิถุนายน', 7=>'กรกฎาคม', 8=>'สิงหาคม', 9=>'กันยายน', 10=>'ตุลาคม', 11=>'พฤศจิกายน', 12=>'ธันวาคม'];
+    return $months[intval($month_num)] ?? '';
 }
 
 // 1. รับค่าตัวกรอง
-$selected_month = $_GET['month'] ?? date('Y-m');
+$month_filter = isset($_GET['month']) ? intval($_GET['month']) : 0;
+$year_filter  = isset($_GET['year']) ? intval($_GET['year']) : 0;
+
+// --- สร้างหัวข้อรายงานแบบ Dynamic ---
+if ($month_filter == 0 && $year_filter == 0) {
+    $report_title = "รายงานเงินเดือนทั้งหมด";
+} else {
+    $report_title = "รายงานเงินเดือน";
+    if ($month_filter > 0) $report_title .= " เดือน " . thai_month_name($month_filter);
+    if ($year_filter > 0) $report_title .= " ปี " . ($year_filter + 543);
+    else $report_title .= " (ทุกปี)";
+}
 
 // 2. ดึงข้อมูลและคำนวณเงินเดือน (โค้ดเดียวกับใน dashboard)
-$calculated_data = [];
-$stmt = $conn->prepare("
+$sql = "
     SELECT 
-        e.employee_id, e.full_name,
-        SUM(CASE WHEN a.morning='present' AND a.afternoon='present' THEN 1 ELSE 0 END) AS full_days,
-        SUM(CASE WHEN (a.morning='present' AND a.afternoon NOT IN ('present', 'late')) OR (a.morning NOT IN ('present', 'late') AND a.afternoon='present') THEN 1 ELSE 0 END) AS half_days,
-        COUNT(DISTINCT CASE WHEN a.morning='late' OR a.afternoon='late' THEN a.attend_date END) AS late_days,
-        SUM(CASE WHEN a.morning='leave' AND a.afternoon='leave' THEN 1 ELSE 0 END) AS leave_days,
-        SUM(CASE WHEN a.morning='absent' AND a.afternoon='absent' THEN 1 ELSE 0 END) AS absent_days
+        e.employee_id, e.full_name, p.full_days, p.half_days, p.late_days,
+        p.leave_days, p.absent_days, p.work_days, p.amount
     FROM employees e
-    LEFT JOIN attendances a ON e.employee_id = a.employee_id AND DATE_FORMAT(a.attend_date, '%Y-%m') = ?
+    LEFT JOIN employee_payments p ON e.employee_id = p.employee_id
+        AND (? = 0 OR MONTH(p.pay_month) = ?)
+        AND (? = 0 OR YEAR(p.pay_month) = ?)
     WHERE e.status = 1
-    GROUP BY e.employee_id
-    ORDER BY e.employee_id
-");
-$stmt->bind_param("s", $selected_month);
+    ORDER BY e.employee_id ASC";
+
+$stmt = $conn->prepare($sql);
+$stmt->bind_param('iiii', $month_filter, $month_filter, $year_filter, $year_filter);
 $stmt->execute();
 $result = $stmt->get_result();
 
+$calculated_data = [];
 if($result){
     while($row = $result->fetch_assoc()){
-        $work_days_paid = (float)$row['full_days'] + ((float)$row['half_days'] * 0.5) + (float)$row['late_days'];
-        $amount = ((int)$row['full_days'] * $full_rate) + ((int)$row['half_days'] * $half_rate) + ((int)$row['late_days'] * $full_rate);
+        $work_days_paid = (float)$row['full_days'] + ((float)$row['half_days'] * 0.5) + ((float)$row['late_days'] * 0.5);
+        $amount = ((int)$row['full_days'] * FULL_RATE) + ((int)$row['half_days'] * HALF_RATE) + ((int)$row['late_days'] * HALF_RATE);
         
         $calculated_data[] = [
             'id' => $row['employee_id'], 'full_name' => $row['full_name'], 'full' => (int)$row['full_days'],
@@ -58,7 +62,7 @@ if($result){
 }
 
 // 3. สร้างและส่งออกไฟล์ CSV
-$filename = "payroll_report_" . $selected_month . ".csv";
+$filename = "payroll_report_" . date('Y-m-d') . ".csv";
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 
@@ -68,7 +72,7 @@ echo "\xEF\xBB\xBF";
 $output = fopen('php://output', 'w');
 
 // เขียนหัวข้อ
-fputcsv($output, [thai_month_name_excel($selected_month)]);
+fputcsv($output, [$report_title]);
 fputcsv($output, []); // บรรทัดว่าง
 
 // เขียนหัวตาราง
@@ -99,11 +103,12 @@ if (!empty($calculated_data)) {
         ]);
     }
     
+    fputcsv($output, []); // บรรทัดว่าง
     // แถวรวม
     fputcsv($output, [
-        'ยอดรวมทั้งหมด', 
         '', 
-        '',
+        '', 
+        'ยอดรวมทั้งหมด',
         number_format($totals['full']),
         number_format($totals['half']),
         number_format($totals['late']),
