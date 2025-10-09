@@ -1,11 +1,62 @@
 <?php
 ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);   
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 require_once "auth.php";
 require_once "db.php";
 
-// ====================== Sync รายรับจาก order_details ======================ใส่ข้อมูล  คำนวน
+// ฟังก์ชันสำหรับจัดการการอัปโหลดรูปภาพ
+function handleImageUpload($fileInputName, $existingImagePath = null) {
+    if (isset($_FILES[$fileInputName]) && $_FILES[$fileInputName]['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES[$fileInputName];
+        
+        // Path สำหรับ PHP ใช้ในการบันทึกไฟล์ (Server-Side)
+        $serverUploadDir = '../uploads/expenses/'; 
+        
+        // Path สำหรับเก็บลง DB และให้เบราว์เซอร์เรียกใช้ (Client-Side)
+        $clientUrlPath = 'uploads/expenses/';
+
+        // สร้าง directory ถ้ายังไม่มี
+        if (!is_dir($serverUploadDir)) {
+            mkdir($serverUploadDir, 0777, true);
+        }
+
+        // ตรวจสอบขนาดไฟล์ (ไม่เกิน 2MB)
+        if ($file['size'] > 2 * 1024 * 1024) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'ไฟล์รูปภาพต้องมีขนาดไม่เกิน 2MB']; 
+            return false;
+        }
+
+        // ตรวจสอบประเภทไฟล์
+        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!in_array($file['type'], $allowedTypes)) {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'รองรับไฟล์รูปภาพนามสกุล JPG, PNG, GIF, WEBP เท่านั้น'];
+            return false;
+        }
+
+        // ลบรูปเก่า (ถ้ามี) - ต้องใช้ Server Path ในการหาไฟล์
+        // <-- แก้ไข: ตรวจสอบไฟล์โดยอ้างอิงจาก root path
+        if ($existingImagePath && file_exists('../' . $existingImagePath)) {
+             unlink('../' . $existingImagePath);
+        }
+
+        // สร้างชื่อไฟล์ใหม่
+        $fileName = uniqid() . '-' . basename($file['name']);
+        $targetPathOnServer = $serverUploadDir . $fileName;
+        $pathForDatabase = $clientUrlPath . $fileName;
+
+        if (move_uploaded_file($file['tmp_name'], $targetPathOnServer)) {
+            return $pathForDatabase; // <-- แก้ไข: คืนค่า Path สำหรับ Client เพื่อเก็บลง DB
+        } else {
+            $_SESSION['alert'] = ['type' => 'error', 'message' => 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์'];
+            return false;
+        }
+    }
+    return $existingImagePath ?? null; // คืนค่า path เดิมถ้าไม่มีการอัปโหลดไฟล์ใหม่
+}
+
+
+// ====================== Sync รายรับจาก order_details ======================
 $conn->query("
     INSERT INTO transactions (transaction_type, amount, transaction_date, order_detail_id)
     SELECT 'income', od.quantity * od.price, o.order_date, od.order_detail_id
@@ -18,30 +69,54 @@ $conn->query("
 
 // ====================== เพิ่มรายจ่าย ======================
 if (isset($_POST['add_transaction'])) {
-    $stmt = $conn->prepare("INSERT INTO transactions (transaction_type, amount, transaction_date, expense_type) VALUES ('expense', ?, ?, ?)");
-    $stmt->bind_param("dss", $_POST['amount'], $_POST['transaction_date'], $_POST['expense_type']);
-    $stmt->execute();
-    $_SESSION['alert'] = ['type' => 'success', 'message' => 'เพิ่มข้อมูลรายจ่ายสำเร็จ'];
+    $imagePath = handleImageUpload('expense_image');
+    if ($imagePath !== false) {
+        $stmt = $conn->prepare("INSERT INTO transactions (transaction_type, amount, transaction_date, expense_type, slip_image) VALUES ('expense', ?, ?, ?, ?)");
+        $stmt->bind_param("dsss", $_POST['amount'], $_POST['transaction_date'], $_POST['expense_type'], $imagePath);
+        $stmt->execute();
+        $_SESSION['alert'] = ['type' => 'success', 'message' => 'เพิ่มข้อมูลรายจ่ายสำเร็จ'];
+    }
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
 }
 
 // ====================== แก้ไขรายจ่าย ======================
 if(isset($_POST['edit_id'])){
-    $stmt = $conn->prepare("UPDATE transactions SET amount=?, transaction_date=?, expense_type=? WHERE transaction_id=?");
-    $stmt->bind_param("dssi", $_POST['amount'], $_POST['transaction_date'], $_POST['expense_type'], $_POST['edit_id']);
-    $stmt->execute();
-    $_SESSION['alert'] = ['type' => 'success', 'message' => 'แก้ไขข้อมูลรายจ่ายเรียบร้อย'];
+    $currentImagePath = $_POST['current_image_path'] ?? null;
+    $newImagePath = handleImageUpload('expense_image', $currentImagePath);
+
+    if ($newImagePath !== false) {
+        $stmt = $conn->prepare("UPDATE transactions SET amount=?, transaction_date=?, expense_type=?, slip_image=? WHERE transaction_id=?");
+        $stmt->bind_param("dsssi", $_POST['amount'], $_POST['transaction_date'], $_POST['expense_type'], $newImagePath, $_POST['edit_id']);
+        $stmt->execute();
+        $_SESSION['alert'] = ['type' => 'success', 'message' => 'แก้ไขข้อมูลรายจ่ายเรียบร้อย'];
+    }
     header("Location: ".$_SERVER['PHP_SELF']);
     exit();
 }
 
+
 // ====================== ลบแบบ Hard Delete ======================
 if(isset($_POST['delete_id'])){
-    // ป้องกันการลบรายการประเภท income
-    $stmt = $conn->prepare("DELETE FROM transactions WHERE transaction_id=? AND transaction_type = 'expense'");
-    $stmt->bind_param("i", $_POST['delete_id']);
-    $stmt->execute();
+    // ดึงที่อยู่ไฟล์รูปภาพก่อนลบ
+    $stmt_select = $conn->prepare("SELECT slip_image FROM transactions WHERE transaction_id=? AND transaction_type = 'expense'");
+    $stmt_select->bind_param("i", $_POST['delete_id']);
+    $stmt_select->execute();
+    $result_select = $stmt_select->get_result();
+    if($row = $result_select->fetch_assoc()){
+        // <-- แก้ไข: เพิ่ม '../' เพื่อให้ PHP หาไฟล์เจอจากตำแหน่งปัจจุบัน
+        if (!empty($row['slip_image']) && file_exists('../' . $row['slip_image'])) {
+            unlink('../' . $row['slip_image']); // ลบไฟล์รูปภาพ
+        }
+    }
+    $stmt_select->close();
+
+    // ลบข้อมูลจากฐานข้อมูล
+    $stmt_delete = $conn->prepare("DELETE FROM transactions WHERE transaction_id=? AND transaction_type = 'expense'");
+    $stmt_delete->bind_param("i", $_POST['delete_id']);
+    $stmt_delete->execute();
+    $stmt_delete->close();
+
     $_SESSION['alert'] = ['type' => 'info', 'message' => 'ลบข้อมูลเรียบร้อย'];
     header("Location: ".$_SERVER['PHP_SELF']);
     exit();
@@ -49,7 +124,7 @@ if(isset($_POST['delete_id'])){
 
 // ====================== ดึงข้อมูล transactions ======================
 $filter = $_GET['filter'] ?? 'all';
-$sql = "SELECT t.transaction_id, t.transaction_type, t.amount, t.transaction_date, t.expense_type,
+$sql = "SELECT t.transaction_id, t.transaction_type, t.amount, t.transaction_date, t.expense_type, t.slip_image,
                o.order_id, p.product_name
         FROM transactions t
         LEFT JOIN order_details od ON t.order_detail_id = od.order_detail_id
@@ -73,6 +148,7 @@ $result = $conn->query($sql);
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
+    /* CSS Styles (ไม่มีการเปลี่ยนแปลง) */
     /* ==================== Fonts ==================== */
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
@@ -91,6 +167,7 @@ $result = $conn->query($sql);
     --success: #2ecc71;
     --danger: #e74c3c;
     --warning: #f39c12;
+    --info-blue: #3498db;
 }
 
 /* ==================== Reset ==================== */
@@ -226,6 +303,8 @@ tbody tr:hover { background-color: #d4eaf7; }
 .btn-delete:hover { background-color: #c0392b; }
 .btn-edit { background-color: var(--warning); color: #212529; }
 .btn-edit:hover { background-color: #e67e22; }
+.btn-preview { background-color: var(--info-blue); }
+.btn-preview:hover { background-color: #2980b9; }
 
 /* ==================== Modal ==================== */
 .modal {
@@ -276,6 +355,10 @@ tbody tr:hover { background-color: #d4eaf7; }
     outline: none; border-color: var(--primary-color);
     box-shadow: 0 0 8px rgba(52,152,219,0.25);
 }
+.modal form input[type="file"] {
+    padding: 8px;
+    background-color: var(--light-gray);
+}
 .modal form button {
     width: 100%; padding: 12px;
     font-size: 1.1rem; margin-top: 20px;
@@ -310,7 +393,6 @@ tbody tr:hover { background-color: #d4eaf7; }
     <div class="container">
         <div class="search-row">
             <input type="text" id="search-input" class="search-box" placeholder="ค้นหารายละเอียด, จำนวนเงิน..." onkeyup="searchTransaction()"/>
-            <button class="action-btn find-btn" onclick="searchTransaction()"><i class="fas fa-search"></i> ค้นหา</button>
             <button type="button" class="action-btn add-btn" onclick="openAddModal()">
                 <i class="fas fa-minus-circle"></i> &nbsp; เพิ่มรายจ่าย
             </button>
@@ -319,7 +401,7 @@ tbody tr:hover { background-color: #d4eaf7; }
             <table id="transactions-table">
                 <thead>
                     <tr>
-                        <th>รหัส</th> <th>ประเภท</th> <th>จำนวนเงิน (บาท)</th> <th>วันที่</th> <th>รายละเอียด</th> <th>รหัสสั่งซื้อ</th> <th>จัดการ</th>
+                        <th>รหัส</th> <th>ประเภท</th> <th>จำนวนเงิน (บาท)</th> <th>วันที่</th> <th>รายละเอียด</th> <th>รหัสสั่งซื้อ</th> <th>รูปภาพ</th> <th>จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -331,6 +413,13 @@ tbody tr:hover { background-color: #d4eaf7; }
                     <td style="text-align:center;"><?= date('d/m/', strtotime($row['transaction_date'])) . (date('Y', strtotime($row['transaction_date'])) + 543) ?></td>
                     <td style="text-align:left;"><?= $row['transaction_type']=='expense' ? htmlspecialchars($row['expense_type'] ?? '-') : htmlspecialchars($row['product_name'] ?? 'N/A') ?></td>
                     <td style="text-align:center;"><?= $row['order_id'] ?? '-' ?></td>
+                    <td style="text-align:center;">
+                        <?php if($row['transaction_type']=='expense' && !empty($row['slip_image'])): ?>
+                            <button type="button" class="btn-action btn-preview" onclick="showImagePreview('<?= htmlspecialchars($row['slip_image']) ?>')">
+                                <i class="fas fa-eye"></i> ดูรูปภาพ
+                            </button>
+                        <?php else: echo '-'; endif; ?>
+                    </td>
                     <td>
                         <div class="btn-group">
                             <?php if($row['transaction_type']=='expense'): ?>
@@ -347,7 +436,7 @@ tbody tr:hover { background-color: #d4eaf7; }
                     </td>
                 </tr>
                 <?php endwhile; else: ?>
-                <tr><td colspan="7" style="text-align:center; padding: 2rem;">ไม่มีข้อมูล</td></tr>
+                <tr><td colspan="8" style="text-align:center; padding: 2rem;">ไม่มีข้อมูล</td></tr>
                 <?php endif; ?>
                 </tbody>
             </table>
@@ -359,17 +448,20 @@ tbody tr:hover { background-color: #d4eaf7; }
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('add-modal')">&times;</span>
         <h3><i class="fas fa-minus-circle"></i> เพิ่มรายการรายจ่าย</h3>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="add_transaction" value="1">
             <label for="add-amount">จำนวนเงิน:</label>
             <input type="number" name="amount" id="add-amount" step="0.01" min="0" required>
-            
+
             <label for="add-date">วันที่:</label>
             <input type="date" name="transaction_date" id="add-date" value="<?= date('Y-m-d')?>" required>
-            
+
             <label for="add-expense-type">ประเภทค่าใช้จ่าย:</label>
             <input type="text" name="expense_type" id="add-expense-type" placeholder="เช่น ค่าไฟ, ค่าน้ำมัน" required>
-            
+
+            <label for="add-expense-image">รูปภาพประกอบ (ถ้ามี, ไม่เกิน 2MB):</label>
+            <input type="file" name="expense_image" id="add-expense-image" accept="image/jpeg,image/png,image/gif,image/webp">
+
             <button type="submit"><i class="fas fa-save"></i> บันทึกรายจ่าย</button>
         </form>
     </div>
@@ -379,17 +471,22 @@ tbody tr:hover { background-color: #d4eaf7; }
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('edit-modal')">&times;</span>
         <h3><i class="fas fa-edit"></i> แก้ไขรายการรายจ่าย</h3>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="edit_id" id="edit-id">
+            <input type="hidden" name="current_image_path" id="edit-current-image-path">
+
             <label for="edit-amount">จำนวนเงิน:</label>
             <input type="number" name="amount" id="edit-amount" step="0.01" min="0" required>
-            
+
             <label for="edit-date">วันที่:</label>
             <input type="date" name="transaction_date" id="edit-date" required>
-            
+
             <label for="edit-expense-type">ประเภทค่าใช้จ่าย:</label>
             <input type="text" name="expense_type" id="edit-expense-type" required>
-            
+
+            <label for="edit-expense-image">เปลี่ยนรูปภาพ (ถ้าต้องการ, ไม่เกิน 2MB):</label>
+            <input type="file" name="expense_image" id="edit-expense-image" accept="image/jpeg,image/png,image/gif,image/webp">
+
             <button type="submit"><i class="fas fa-sync-alt"></i> บันทึกการแก้ไข</button>
         </form>
     </div>
@@ -406,14 +503,28 @@ tbody tr:hover { background-color: #d4eaf7; }
         document.getElementById('edit-amount').value = rowData.amount;
         document.getElementById('edit-date').value = rowData.transaction_date;
         document.getElementById('edit-expense-type').value = rowData.expense_type;
+        document.getElementById('edit-current-image-path').value = rowData.slip_image;
         openModal('edit-modal');
+    }
+
+    function showImagePreview(imagePath) {
+        // <-- แก้ไข: เพิ่ม '../' เพื่อสร้าง URL ที่ถูกต้องสำหรับเบราว์เซอร์
+        Swal.fire({
+            imageUrl: '../' + imagePath,
+            imageAlt: 'รูปภาพประกอบรายจ่าย',
+            imageHeight: '80vh',
+            width: 'auto',
+            showConfirmButton: false,
+            showCloseButton: true,
+            backdrop: `rgba(0,31,63,0.7)`
+        });
     }
     
     function confirmDelete(event, form) {
         event.preventDefault(); 
         Swal.fire({
             title: 'ยืนยันการลบ',
-            text: "คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้อย่างถาวร?",
+            text: "คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้ (รวมถึงรูปภาพที่แนบ) อย่างถาวร?",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
@@ -460,8 +571,8 @@ tbody tr:hover { background-color: #d4eaf7; }
     window.onclick = function(event) {
         if (event.target.classList.contains('modal')) {
              if (document.getElementById(event.target.id)) {
-                closeModal(event.target.id);
-            }
+                 closeModal(event.target.id);
+             }
         }
     }
     
@@ -471,7 +582,7 @@ tbody tr:hover { background-color: #d4eaf7; }
         icon: '<?= $_SESSION['alert']['type'] ?>',
         title: '<?= $_SESSION['alert']['message'] ?>',
         showConfirmButton: false,
-        timer: 1800,
+        timer: 2200,
         toast: true,
         position: 'top-end',
         timerProgressBar: true

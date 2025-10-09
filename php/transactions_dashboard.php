@@ -1,5 +1,5 @@
 <?php
-session_start(); // หากยังไม่มี session_start()
+session_start();
 require_once "auth.php";
 require_once "db.php";
 
@@ -12,12 +12,13 @@ function thai_month($month){
     return $months[intval($month)] ?? '';
 }
 
-// --- รับค่า Filter และกำหนดค่าเริ่มต้น ---
+// --- (ปรับปรุง) รับค่า Filter และกำหนดค่าเริ่มต้นอัจฉริยะ ---
 $type_filter = $_GET['type'] ?? '';
-$filter_month = isset($_GET['month']) ? intval($_GET['month']) : 0; 
-$filter_year  = isset($_GET['year']) ? intval($_GET['year']) : 0; 
+$filter_month = isset($_GET['month']) ? intval($_GET['month']) : 0;
+// ถ้าไม่ได้เลือกปี ให้ใช้ปีปัจจุบันเป็นค่าเริ่มต้น
+$filter_year  = isset($_GET['year']) && intval($_GET['year']) > 0 ? intval($_GET['year']) : intval(date('Y'));
 
-// --- 1. สร้าง SQL Query สำหรับรายการธุรกรรม (เหมือนเดิม) ---
+// --- 1. สร้าง Query สำหรับดึงรายการธุรกรรม (transactions) ---
 $sql = "SELECT t.*, od.product_id, p.product_name, o.order_id
         FROM transactions t
         LEFT JOIN order_details od ON t.order_detail_id = od.order_detail_id
@@ -47,7 +48,6 @@ if ($filter_year > 0) {
 if (!empty($where_clauses)) {
     $sql .= " WHERE " . implode(" AND ", $where_clauses);
 }
-$sql .= " ORDER BY t.transaction_date DESC, t.transaction_id DESC";
 
 $stmt = $conn->prepare($sql);
 if (!empty($params)) {
@@ -55,13 +55,15 @@ if (!empty($params)) {
 }
 $stmt->execute();
 $result = $stmt->get_result();
-$rows = $result->fetch_all(MYSQLI_ASSOC);
+$transaction_rows = $result->fetch_all(MYSQLI_ASSOC);
 
-// --- (เพิ่มใหม่) 2. ดึงยอดรวมเงินเดือนจากตาราง `salary` ---
-$total_salary_expense = 0;
-// เราจะดึงยอดเงินเดือนก็ต่อเมื่อดูหน้ารวม หรือหน้ารายจ่ายเท่านั้น
+
+// --- (ปรับปรุง) 2. ดึงข้อมูลเงินเดือนและแปลงให้เป็นรูปแบบเดียวกับ transactions ---
+$salary_rows = [];
+// จะดึงยอดเงินเดือนก็ต่อเมื่อดูหน้ารวม ('') หรือหน้ารายจ่าย ('expense') เท่านั้น
 if ($type_filter === '' || $type_filter === 'expense') {
-    $salary_sql = "SELECT SUM(total_amount) as total FROM salary";
+    $salary_sql = "SELECT total_amount, pay_month FROM salary";
+    
     $salary_params = [];
     $salary_types = "";
     $salary_where = [];
@@ -86,31 +88,45 @@ if ($type_filter === '' || $type_filter === 'expense') {
         $stmt_salary->bind_param($salary_types, ...$salary_params);
     }
     $stmt_salary->execute();
-    $salary_result = $stmt_salary->get_result()->fetch_assoc();
-    $total_salary_expense = $salary_result['total'] ?? 0; // ถ้าไม่มีข้อมูลให้เป็น 0
+    $salary_results = $stmt_salary->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    // แปลงข้อมูล salary ให้มีโครงสร้างเหมือน transactions เพื่อนำไปรวมกัน
+    foreach ($salary_results as $salary) {
+        $salary_rows[] = [
+            'transaction_id' => 'S' . date('mY', strtotime($salary['pay_month'])), // สร้าง ID สมมติ
+            'transaction_type' => 'expense',
+            'amount' => $salary['total_amount'],
+            'transaction_date' => $salary['pay_month'],
+            'expense_type' => 'เงินเดือนพนักงานเดือน ' . thai_month(date('n', strtotime($salary['pay_month']))),
+            'order_id' => null,
+            'slip_image' => null,
+            'product_name' => null
+        ];
+    }
 }
 
+// --- 3. รวมข้อมูลและจัดเรียงตามวันที่ ---
+$all_rows = array_merge($transaction_rows, $salary_rows);
+// จัดเรียงข้อมูลทั้งหมดตามวันที่จากใหม่ไปเก่า
+usort($all_rows, function($a, $b) {
+    return strtotime($b['transaction_date']) - strtotime($a['transaction_date']);
+});
 
-// --- 3. คำนวณยอดรวม (แก้ไข) ---
+
+// --- 4. คำนวณยอดรวมจากข้อมูลที่รวมกันแล้ว ---
 $total_income = 0;
 $total_expense = 0;
-
-// คำนวณยอดจากตาราง transactions เหมือนเดิม
-foreach($rows as $row){
+foreach($all_rows as $row){
     if($row['transaction_type'] === 'income'){
         $total_income += $row['amount'];
     } else {
         $total_expense += $row['amount'];
     }
 }
-
-//นำยอดรวมเงินเดือนมาบวกเพิ่มเข้าไปในรายจ่าย
-$total_expense += $total_salary_expense;
-
 $balance = $total_income - $total_expense;
 
 
-// --- สร้างหัวข้อรายงานแบบ Dynamic (เหมือนเดิม) ---
+// --- 5. สร้างหัวข้อรายงานแบบ Dynamic ---
 $report_title = "รายงาน";
 if ($type_filter == 'income') $report_title .= "รายรับ";
 elseif ($type_filter == 'expense') $report_title .= "รายจ่าย";
@@ -122,23 +138,20 @@ if ($filter_year > 0) {
     $report_title .= " ปี " . ($filter_year + 543);
 }
 
-if ($filter_month == 0 && $filter_year == 0) {
-    $report_title .= "ทั้งหมด";
-}
-
 ?>
 
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>รายงานรายรับ-รายจ่าย</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>รายงานรายรับ-รายจ่าย</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+    /* CSS ทั้งหมดเหมือนเดิม (ไม่มีการเปลี่ยนแปลง) */
     /* ================================
-   Root Variables
+    Root Variables
 ================================ */
 :root {
     --primary-color: #3498db;
@@ -156,7 +169,7 @@ if ($filter_month == 0 && $filter_year == 0) {
 }
 
 /* ================================
-   Reset & Base
+    Reset & Base
 ================================ */
 * {
     box-sizing: border-box;
@@ -171,7 +184,7 @@ body {
 }
 
 /* ================================
-   Sidebar
+    Sidebar
 ================================ */
 .sidebar {
     width: 250px;
@@ -236,7 +249,7 @@ body {
 }
 
 /* ================================
-   Main Content
+    Main Content
 ================================ */
 .main {
     margin-left: 250px;
@@ -263,7 +276,7 @@ body {
 }
 
 /* ================================
-   Containers & Filters
+    Containers & Filters
 ================================ */
 .container {
     background-color: var(--white);
@@ -295,7 +308,7 @@ body {
 }
 
 /* ================================
-   Buttons
+    Buttons
 ================================ */
 .action-buttons { display: flex; gap: 0.75rem; }
 .action-button {
@@ -316,12 +329,12 @@ body {
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .btn-filter { background-color: var(--primary-color); }
-.btn-pdf    { background-color: var(--danger); }
+.btn-pdf     { background-color: var(--danger); }
 .btn-excel  { background-color: var(--success); }
 .btn-email  { background-color: var(--warning); color: #333; }
 
 /* ================================
-   Tables
+    Tables
 ================================ */
 table { width: 100%; border-collapse: collapse; }
 thead th {
@@ -343,7 +356,7 @@ td.amount  { text-align: right; }
 td.center  { text-align: center; }
 
 /* ================================
-   Summary Cards
+    Summary Cards
 ================================ */
 .summary-cards {
     display: grid;
@@ -381,7 +394,7 @@ td.center  { text-align: center; }
 .card-balance .info p { color: <?= $balance >= 0 ? 'var(--success)' : 'var(--danger)' ?>; }
 
 /* ================================
-   Modal
+    Modal
 ================================ */
 .modal-overlay {
     display: none;
@@ -463,43 +476,53 @@ td.center  { text-align: center; }
         <h1><i class="fas fa-receipt"></i>&nbsp; รายงานรายรับ-รายจ่าย</h1>
     </div>
 
-    <?php if (empty($type_filter)): ?>
+    <?php if (empty($type_filter) || $type_filter === 'expense'): ?>
     <div class="summary-cards">
+        <?php if (empty($type_filter) || $type_filter === 'income'): ?>
         <div class="summary-card card-income">
             <div class="icon"><i class="fas fa-arrow-circle-down"></i></div>
             <div class="info"><h4>ยอดรวมรายรับ</h4><p><?= number_format($total_income, 2) ?></p></div>
         </div>
+        <?php endif; ?>
+
+        <?php if (empty($type_filter) || $type_filter === 'expense'): ?>
         <div class="summary-card card-expense">
             <div class="icon"><i class="fas fa-arrow-circle-up"></i></div>
             <div class="info"><h4>ยอดรวมรายจ่าย</h4><p><?= number_format($total_expense, 2) ?></p></div>
         </div>
+        <?php endif; ?>
+        
+        <?php if (empty($type_filter)): ?>
         <div class="summary-card card-balance">
             <div class="icon"><i class="fas fa-wallet"></i></div>
             <div class="info"><h4>ยอดสุทธิ</h4><p><?= number_format($balance, 2) ?></p></div>
         </div>
+        <?php endif; ?>
     </div>
     <?php endif; ?>
+
 
     <div class="container">
         <div class="filter-box">
             <form method="get" class="filter-form">
                 <input type="hidden" name="type" value="<?= htmlspecialchars($type_filter) ?>">
-                
+
                 <label for="month-select">เดือน :</label>
                 <select name="month" id="month-select">
-                    <option value="0" <?= ($filter_month == 0) ? 'selected' : '' ?>>ทั้งหมด</option>
+                    <option value="0" <?= ($filter_month == 0) ? 'selected' : '' ?>>ทุกเดือน</option>
                     <?php for($m=1; $m<=12; $m++): ?>
                     <option value="<?= $m ?>" <?= ($filter_month == $m) ? 'selected' : '' ?>><?= thai_month($m) ?></option>
                     <?php endfor; ?>
                 </select>
-                
+
                 <label for="year-select">ปี :</label>
                 <select name="year" id="year-select">
-                    <option value="0" <?= ($filter_year == 0) ? 'selected' : '' ?>>ทั้งหมด</option>
-                    <?php 
-                    $current_year = intval(date('Y'));
-                    for($y = 2022; $y <= 2035; $y++): 
-                        // ลบบรรทัดที่ผิดพลาดออกจากตรงนี้
+                    <option value="0" <?= ($filter_year == 0) ? 'selected' : '' ?>>ทุกปี</option>
+                    <?php
+                    // <-- ปรับปรุง: ให้ปีเริ่มต้นที่ 2024 และสิ้นสุดที่ปีปัจจุบัน + 5
+                    $start_year = 2024;
+                    $end_year = intval(date('Y')) + 5;
+                    for($y = $start_year; $y <= $end_year; $y++):
                     ?>
                     <option value="<?= $y ?>" <?= ($y == $filter_year) ? 'selected' : '' ?>>
                         <?= $y + 543 ?>
@@ -519,7 +542,7 @@ td.center  { text-align: center; }
             </div>
         </div>
     </div>
-    
+
     <div class="container">
         <h2 style="margin-bottom: 1.5rem; text-align:center; color: var(--secondary-color);"><?= htmlspecialchars($report_title) ?></h2>
         <div style="overflow-x:auto;">
@@ -532,28 +555,37 @@ td.center  { text-align: center; }
                         <th>วันที่</th>
                         <th>รายละเอียด</th>
                         <th>รหัสสั่งซื้อ</th>
+                        <th>รูปภาพ</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (!empty($rows)):
-                        $i = count($rows);
-                        foreach($rows as $row):
-                            $desc = $row['transaction_type'] == 'expense' 
-                            ? ($row['expense_type'] ?? '-') 
+                    <?php if (!empty($all_rows)):
+                        $i = 1; // <-- แก้ไข: เริ่มนับจาก 1
+                        foreach($all_rows as $row):
+                            $desc = $row['transaction_type'] == 'expense'
+                            ? ($row['expense_type'] ?? '-')
                             : ($row['product_name'] ?? '-');
                     ?>
                     <tr>
-                        <td class="center"><?= $i-- ?></td>
-                        <td class="center <?= $row['transaction_type'] ?>"><?= $row['transaction_type']=='income' ? '<i class="fas fa-plus-circle"></i> ' : '<i class="fas fa-minus-circle"></i> ' ?><?= thai_type($row['transaction_type']) ?></td>
+                        <td class="center"><?= $i++ ?></td> <td class="center <?= $row['transaction_type'] ?>"><?= $row['transaction_type']=='income' ? '<i class="fas fa-plus-circle"></i> ' : '<i class="fas fa-minus-circle"></i> ' ?><?= thai_type($row['transaction_type']) ?></td>
                         <td class="amount <?= $row['transaction_type'] ?>"><?= number_format($row['amount'], 2) ?></td>
                         <td class="center"><?= date('d/m/', strtotime($row['transaction_date'])) . (date('Y', strtotime($row['transaction_date'])) + 543) ?></td>
                         <td style="text-align:left;"><?= htmlspecialchars($desc) ?></td>
                         <td class="center"><?= htmlspecialchars($row['order_id'] ?? '-') ?></td>
+                        <td class="center">
+                            <?php if (!empty($row['slip_image'])): ?>
+                                <a href="<?= '../' . htmlspecialchars($row['slip_image']) ?>" target="_blank" title="คลิกเพื่อดูภาพใหญ่">
+                                    <img src="<?= '../' . htmlspecialchars($row['slip_image']) ?>" alt="Slip" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; cursor: pointer;">
+                                </a>
+                            <?php else: ?>
+                                -
+                            <?php endif; ?>
+                        </td>
                     </tr>
-                    <?php 
+                    <?php
                         endforeach;
                     else:
-                        echo '<tr><td colspan="6" style="text-align:center; padding: 2rem; color:#7f8c8d;"><i class="fas fa-info-circle"></i> ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
+                        echo '<tr><td colspan="7" style="text-align:center; padding: 2rem; color:#7f8c8d;"><i class="fas fa-info-circle"></i> ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>';
                     endif;
                     ?>
                 </tbody>
@@ -585,11 +617,12 @@ td.center  { text-align: center; }
 </div>
 
 <script>
+// JavaScript ทั้งหมดเหมือนเดิม (ไม่มีการเปลี่ยนแปลง)
 document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     const main = document.getElementById('main');
     const toggleBtn = document.getElementById('toggle-btn');
-    
+
     if (toggleBtn) {
         toggleBtn.addEventListener('click', () => {
             sidebar.classList.toggle('hidden');
@@ -602,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const excelButton = document.getElementById('excelButton');
     const emailModalButton = document.getElementById('emailModalButton');
     const emailModal = document.getElementById('emailModal');
-    
+
     function buildExportUrl(baseUrl) {
         const params = new URLSearchParams(window.location.search);
         return `${baseUrl}?${params.toString()}`;
@@ -647,14 +680,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 emailStatus.innerHTML = `<span style="color: var(--danger);">กรุณาเลือกรูปแบบไฟล์อย่างน้อย 1 ไฟล์</span>`;
                 return;
             }
-            
+
             this.disabled = true;
             emailStatus.innerHTML = `<span style="color: var(--primary-color);">กำลังส่ง... <i class="fas fa-spinner fa-spin"></i></span>`;
-            
+
             const formData = new FormData();
             formData.append('email', email);
             selectedFormats.forEach(format => formData.append('file_formats[]', format));
-            
+
             const params = new URLSearchParams(window.location.search);
             for (const [key, value] of params) {
                 formData.append(key, value);
@@ -665,13 +698,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (!response.ok) throw new Error('Server response was not ok.');
 
                 const result = await response.json();
                 if (result.status === 'success') {
                     emailStatus.innerHTML = `<span style="color: var(--success);">${result.message}</span>`;
-                    setTimeout(closeModal, 2000); 
+                    setTimeout(closeModal, 2000);
                 } else {
                     emailStatus.innerHTML = `<span style="color: var(--danger);">ผิดพลาด: ${result.message || 'เกิดข้อผิดพลาด'}</span>`;
                     this.disabled = false;

@@ -461,7 +461,6 @@ th:first-child, td:first-child {
         <h4><i class="fas fa-search"></i> ค้นหาและเพิ่มลูกค้า</h4>
         <div class="search-row">
             <input type="text" id="search-customer" class="search-box" placeholder="ค้นหาด้วยชื่อ, เบอร์โทร, หรือที่อยู่..." onkeyup="searchCustomer()"/>
-            <button class="action-btn find-btn" onclick="searchCustomer()"><i class="fas fa-search"></i> ค้นหา</button>
             <button class="action-btn add-btn" onclick="openModal('customer-modal')"><i class="fas fa-user-plus"></i> เพิ่มลูกค้าใหม่</button>
         </div>
     </div>

@@ -458,7 +458,7 @@ td .btn-danger:hover { background-color: #c0392b; transform: translateY(-1px); }
         <button type="button" class="btn btn-add" onclick="openModal('addModal')"><i class="fas fa-plus-circle"></i> เพิ่มสินค้า</button>
         <form method="POST" style="display:inline-block;">
             <input type="hidden" name="save_order" value="1">
-            <button type="submit" class="btn btn-save"><i class="fas fa-check-circle"></i> บันทึกและปิด</button>
+            <button type="submit" class="btn btn-save"><i class="fas fa-check-circle"></i>บันทึก</button>
         </form>
         <a href="orders.php" class="btn btn-back"><i class="fas fa-arrow-left"></i> กลับหน้ารายการ</a>
     </div>

@@ -250,7 +250,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_id'])) {
         <h4><i class="fas fa-search"></i> ค้นหาและเพิ่มสินค้า</h4>
         <div class="search-row">
             <input type="text" id="search-input" class="search-box" placeholder="ค้นหาประเภท, ชื่อสินค้า..." onkeyup="searchTable()"/>
-            <button class="action-btn find-btn" onclick="searchTable()"><i class="fas fa-search"></i> ค้นหา</button>
             <button class="action-btn add-btn" onclick="openModal('product-modal')"><i class="fas fa-plus-circle"></i> เพิ่มสินค้าใหม่</button>
         </div>
     </div>
