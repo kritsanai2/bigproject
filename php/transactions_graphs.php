@@ -124,7 +124,7 @@ $yearlyExpense = array_column($yearlyData, 'expense');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📊 กราฟรายงานรายรับ-รายจ่าย</title>
+    <title>💧 กราฟรายงานรายรับ-รายจ่าย</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -425,7 +425,7 @@ body {
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="../img/da.jfif" alt="โลโก้" class="logo">
-        <h4>รายงานกราฟ</h4>
+        <h2>ระบบจัดการ</h2>
     </div>
     <a href="transactions_dashboard.php"><i class="fas fa-list fa-fw"></i>&nbsp; <span>รายการทั้งหมด</span></a>
     <a href="transactions_graphs.php" class="active"><i class="fas fa-chart-pie fa-fw"></i>&nbsp; <span>รายงานกราฟ</span></a>

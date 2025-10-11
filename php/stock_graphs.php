@@ -95,7 +95,7 @@ $datasetsYear = [['label'=>'รับเข้า','data'=>$yearlyImport,'border
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📊 กราฟรายงานสต็อก</title>
+<title>💧 กราฟรายงานสต็อก</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -390,7 +390,7 @@ body {
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-        <h2>รายงานคลังสินค้า</h2>
+       <h2>ระบบจัดการ</h2>
     </div>
     <a href="stock_dashboard.php"><i class="fas fa-table fa-fw"></i>&nbsp; <span>รายงานทั้งหมด</span></a>
     <a href="stock_graphs.php" class="active"><i class="fas fa-chart-pie fa-fw"></i>&nbsp; <span>รายงานกราฟ</span></a>

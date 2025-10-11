@@ -56,8 +56,8 @@ if(isset($_POST['calculate'])){
 
 // --- บันทึกข้อมูล ---
 if(isset($_POST['save']) && isset($_POST['data'])){
-    // ใช้เดือนที่เลือกจากฟอร์ม ไม่ใช่วันที่ปัจจุบัน
-    $pay_month = $_POST['month'] . '-01'; 
+    // ใช้เดือนที่เลือกจากวันที่ปัจจุบัน
+    $pay_month = date('Y-m-d');
     $grand_total_salary = 0;
 
     // --- เตรียมคำสั่งสำหรับตาราง employee_payments (แก้ไข) ---
@@ -106,7 +106,7 @@ if(isset($_POST['save']) && isset($_POST['data'])){
 <html>
 <head>
 <meta charset="UTF-8">
-<title>คำนวณและบันทึกเงินเดือน</title>
+<title> 💧 คำนวณและบันทึกเงินเดือน</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -331,7 +331,7 @@ tbody tr:hover {
                             <th>สาย</th> 
                             <th>ลา</th> 
                             <th>ขาด</th> 
-                            <th>รวมวันได้เงิน</th> 
+                            <th>รวมวันทำงาน</th> 
                             <th>เงินเดือน (บาท)</th>
                         </tr>
                     </thead>

@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once "auth.php";
 require_once "db.php";
 
@@ -48,249 +49,168 @@ while($row = $res->fetch_assoc()){
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>เช็คชื่อพนักงาน</title>
+<title> 💧 เช็คชื่อพนักงาน</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
-   /* ====================== Import Fonts ====================== */
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
-
-/* ====================== Root Variables ====================== */
-:root {
-    --primary-color: #3498db;
-    --secondary-color: #2c3e50;
-    --light-teal-bg: #eaf6f6;
-    --navy-blue: #001f3f;
-    --gold-accent: #fca311;
-    --white: #ffffff;
-    --light-gray: #f8f9fa;
-    --gray-border: #ced4da;
-    --text-color: #495057;
-    --success: #2ecc71;
-    --danger: #e74c3c;
-    --warning: #f39c12;
-    --info: #9b59b6;
-}
-
-/* ====================== Global Styles ====================== */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-    font-family: 'Sarabun', sans-serif;
-    background-color: var(--light-teal-bg);
-    color: var(--text-color);
-    padding: 20px;
-}
-
-/* ====================== Container ====================== */
-.container-wrapper {
-    max-width: 1400px;
-    margin: 0 auto;
-    background: var(--white);
-    border-radius: 20px;
-    box-shadow: 0 15px 30px rgba(0,0,0,0.1);
-    padding: 30px 40px;
-}
-
-.container {
-    background-color: var(--white);
-    padding: 25px;
-    border-radius: 12px;
-    margin-bottom: 30px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-}
-
-.container h2, .container h3 {
-    font-size: 1.8rem;
-    color: var(--navy-blue);
-    margin-bottom: 1.5rem;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
-}
-
-/* ====================== Header ====================== */
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    border-bottom: 2px solid var(--primary-color);
-    padding-bottom: 20px;
-    margin-bottom: 30px;
-    gap: 1rem;
-}
-
-.logo {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid var(--gold-accent);
-}
-
-header h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 2.5rem;
-    color: var(--navy-blue);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.header-buttons { display: flex; gap: 1rem; }
-
-.home-button {
-    text-decoration: none;
-    background-color: var(--primary-color);
-    color: var(--white);
-    padding: 10px 25px;
-    border-radius: 50px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.2);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.home-button:hover {
-    background-color: #2980b9;
-    transform: translateY(-3px);
-    box-shadow: 0 6px 15px rgba(52, 152, 219, 0.3);
-}
-
-/* ====================== Form Styles ====================== */
-form { display: flex; flex-direction: column; gap: 1rem; }
-
-.form-row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
-
-label { font-weight: 500; }
-
-input[type="date"], select {
-    padding: 0.75rem;
-    border: 1px solid var(--gray-border);
-    border-radius: 8px;
-    font-size: 1rem;
-    font-family: 'Sarabun', sans-serif;
-}
-
-.save-btn {
-    padding: 10px 25px;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    color: white;
-    background-color: var(--primary-color);
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
-    align-self: flex-start;
-}
-
-.save-btn:hover { background-color: #2980b9; transform: translateY(-2px); }
-
-.center-btn-container { text-align: center; margin-top: 1rem; }
-.center-btn-container .save-btn { align-self: center; }
-
-/* ====================== Table Styles ====================== */
-table { width: 100%; border-collapse: collapse; }
-
-thead th {
-    background-color: var(--navy-blue);
-    color: var(--white);
-    padding: 15px;
-    text-align: center;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-thead th:nth-child(2) { text-align: left; }
-
-tbody td {
-    padding: 10px 15px;
-    border-bottom: 1px solid #e0e0e0;
-    color: #333;
-    text-align: center;
-    vertical-align: middle;
-}
-
-tbody td:nth-child(2) { text-align: left; }
-
-tbody tr:nth-child(even) { background-color: var(--light-gray); }
-
-tbody tr:hover { background-color: #d4eaf7; }
-
-/* ====================== Status Button Group ====================== */
-.status-group {
-    display: flex;
-    border: 1px solid var(--gray-border);
-    border-radius: 50px;
-    overflow: hidden;
-    width: fit-content;
-    margin: auto;
-}
-
-.status-btn {
-    background-color: transparent;
-    border: none;
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-right: 1px solid var(--gray-border);
-}
-
-.status-btn:last-child { border-right: none; }
-
-/* Text Colors */
-.status-btn.present { color: var(--success); }
-.status-btn.late { color: var(--warning); }
-.status-btn.absent { color: var(--danger); }
-.status-btn.leave { color: var(--info); }
-
-/* Selected State */
-.status-btn.selected {
-    color: white !important;
-    font-weight: 500;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
-}
-
-.status-btn.present.selected { background-color: var(--success); }
-.status-btn.late.selected { background-color: var(--warning); color: #212529 !important; }
-.status-btn.absent.selected { background-color: var(--danger); }
-.status-btn.leave.selected { background-color: var(--info); }
-
+    /* ====================== Import & Variables ====================== */
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap');
+    :root {
+        --primary-color: #3498db; --secondary-color: #2c3e50;
+        --light-teal-bg: #eaf6f6; --navy-blue: #001f3f;
+        --white: #ffffff; --light-gray: #f8f9fa;
+        --gray-border: #ced4da; --text-color: #495057;
+        --success: #2ecc71; --danger: #e74c3c;
+        --warning: #f39c12; --info: #9b59b6;
+    }
+    /* ====================== Global & Layout ====================== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Sarabun', sans-serif; background-color: var(--light-teal-bg);
+        color: var(--text-color); display: flex;
+    }
+    .content {
+        margin-left: 250px; padding: 2rem; flex-grow: 1;
+        transition: margin-left 0.3s ease-in-out;
+    }
+    .content.full-width { margin-left: 0; }
+    /* ====================== Sidebar ====================== */
+    .sidebar {
+        width: 250px; background-color: var(--primary-color); color: white;
+        padding: 2rem 1.5rem; height: 100vh; position: fixed; top: 0; left: 0;
+        transition: transform 0.3s ease-in-out; box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        display: flex; flex-direction: column; align-items: center; z-index: 1000;
+    }
+    .sidebar.hidden { transform: translateX(-100%); }
+    .logo {
+        width: 100px; height: 100px; border-radius: 50%;
+        border: 4px solid rgba(255,255,255,0.3);
+        object-fit: cover; margin-bottom: 1.5rem;
+    }
+    .sidebar h2 { font-size: 1.5rem; margin-bottom: 2rem; text-align: center; }
+    .sidebar a {
+        color: white; text-decoration: none; font-size: 1.1rem;
+        padding: 0.8rem 1.5rem; border-radius: 8px; width: 100%;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+        margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem;
+    }
+    .sidebar a:hover { background-color: rgba(255,255,255,0.2); transform: translateX(5px); }
+    .sidebar a.active { background-color: rgba(255,255,255,0.3); font-weight: 500; }
+    .toggle-btn {
+        position: fixed; top: 1rem; right: 1rem; z-index: 1001;
+        background-color: var(--primary-color); color: white; border: none;
+        border-radius: 50%; width: 40px; height: 40px; font-size: 1.5rem;
+        cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        display: flex; justify-content: center; align-items: center;
+    }
+    /* ====================== Header & Container ====================== */
+    .header-main {
+        border-bottom: 2px solid var(--primary-color);
+        padding-bottom: 1.5rem; margin-bottom: 2rem;
+    }
+    .header-main h2 {
+        font-family: 'Playfair Display', serif; font-size: 2.5rem;
+        color: var(--navy-blue); margin: 0; display: flex;
+        align-items: center; gap: 1rem;
+    }
+    .container {
+        background-color: var(--white); padding: 1.5rem;
+        border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        margin-bottom: 2rem;
+    }
+    .container h2, .container h3 {
+        font-size: 1.8rem; color: var(--navy-blue);
+        margin-bottom: 1.5rem; padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    /* ====================== Form & Buttons ====================== */
+    .form-row { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; }
+    label { font-weight: 500; display: flex; flex-direction: column; gap: 0.5rem; }
+    input[type="date"], select {
+        padding: 0.75rem; border: 1px solid var(--gray-border); border-radius: 8px;
+        font-size: 1rem; font-family: 'Sarabun', sans-serif;
+    }
+    .action-btn {
+        padding: 0.75rem 1.5rem; border: none; border-radius: 8px;
+        font-weight: 500; cursor: pointer; color: white; font-size: 1rem;
+        display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+        margin-top: 28px; /* จัดตำแหน่งให้ตรงกับ input/select */
+    }
+    .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .find-btn { background-color: var(--primary-color); }
+    .find-btn:hover { background-color: #2980b9; }
+    .save-btn { background-color: var(--success); }
+    .save-btn:hover { background-color: #27ae60; }
+    .center-btn-container { text-align: center; margin-top: 1.5rem; }
+    /* ====================== Table Styles ====================== */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+        background-color: var(--navy-blue); color: var(--white);
+        padding: 15px; text-align: center; font-size: 0.9rem;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    thead th:nth-child(2) { text-align: left; }
+    tbody td {
+        padding: 10px 15px; border-bottom: 1px solid #e0e0e0;
+        color: #333; text-align: center; vertical-align: middle;
+    }
+    tbody td:nth-child(2) { text-align: left; }
+    tbody tr:nth-child(even) { background-color: var(--light-gray); }
+    tbody tr:hover { background-color: #d4eaf7; }
+    /* ====================== Status Button Group (สไตล์เดิมที่ดีอยู่แล้ว) ====================== */
+    .status-group {
+        display: flex; border: 1px solid var(--gray-border); border-radius: 50px;
+        overflow: hidden; width: fit-content; margin: auto;
+    }
+    .status-btn {
+        background-color: transparent; border: none; padding: 8px 16px;
+        cursor: pointer; transition: all 0.3s ease;
+        border-right: 1px solid var(--gray-border);
+    }
+    .status-btn:last-child { border-right: none; }
+    .status-btn.present { color: var(--success); }
+    .status-btn.late { color: var(--warning); }
+    .status-btn.absent { color: var(--danger); }
+    .status-btn.leave { color: var(--info); }
+    .status-btn.selected {
+        color: white !important; font-weight: 500; box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+    }
+    .status-btn.present.selected { background-color: var(--success); }
+    .status-btn.late.selected { background-color: var(--warning); color: #212529 !important; }
+    .status-btn.absent.selected { background-color: var(--danger); }
+    .status-btn.leave.selected { background-color: var(--info); }
 </style>
 </head>
 <body>
 
-<div class="container-wrapper">
-    <header>
-        <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo"/>
-        <h1><i class="fas fa-user-check"></i> เช็คชื่อพนักงาน</h1>
-        <div class="header-buttons">
-            <a href="employees.php" class="home-button"><i class="fas fa-users"></i> กลับ</a>
-            <a href="employee_payments.php" class="home-button"><i class="fas fa-file-invoice-dollar"></i> คำนวณเงินเดือน</a>
-        </div>
-    </header>
+<button class="toggle-btn" id="toggle-btn"><i class="fas fa-bars"></i></button>
+
+<div class="sidebar" id="sidebar">
+    <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
+    <h2>ระบบจัดการ</h2>
+    <a href="employees.php"><i class="fas fa-users"></i>&nbsp; <span>พนักงาน</span></a>
+    <a href="attendances.php" class="active"><i class="fas fa-user-check"></i>&nbsp; <span>เช็คชื่อ</span></a>
+    <a href="employee_payments.php"><i class="fas fa-file-invoice-dollar"></i>&nbsp; <span>คำนวณเงินเดือน</span></a>
+</div>
+
+<div class="content" id="content">
+    <div class="header-main">
+        <h2><i class="fas fa-user-check"></i> ระบบเช็คชื่อพนักงาน</h2>
+    </div>
 
     <div class="container">
-        <h2>เช็คชื่อพนักงาน (เช้า/บ่าย)</h2>
+        <h2>เช็คชื่อ (เช้า/บ่าย)</h2>
         <form method="POST">
             <div class="form-row">
-                <label>วันที่: <input type="date" name="attend_date" value="<?= $selected_date ?>" onchange="this.form.submit()" required></label>
+                <label>เลือกวันที่
+                    <input type="date" name="attend_date" value="<?= $selected_date ?>" onchange="this.form.submit()" required>
+                </label>
             </div>
             <table>
                 <thead>
                     <tr>
-                        <th>ลำดับ</th>
-                        <th>ชื่อ-สกุล</th> 
-                        <th>เช้า</th>
-                        <th>บ่าย</th>
+                        <th>ลำดับ</th> <th>ชื่อ-สกุล</th> <th>เช้า</th> <th>บ่าย</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -311,7 +231,7 @@ tbody tr:hover { background-color: #d4eaf7; }
                             <input type="hidden" name="status[<?= $empId ?>][morning]" id="status-<?= $empId ?>-morning" value="<?= $morning ?>">
                         </td>
                         <td>
-                             <div class="status-group">
+                            <div class="status-group">
                                 <?php foreach($status_options as $key=>$label): ?>
                                 <button type="button" class="status-btn <?= $key ?> <?= $afternoon==$key?'selected':'' ?>" onclick="selectStatus('<?= $empId ?>','afternoon','<?= $key ?>',this)"><?= $label ?></button>
                                 <?php endforeach; ?>
@@ -325,7 +245,7 @@ tbody tr:hover { background-color: #d4eaf7; }
                 </tbody>
             </table>
             <div class="center-btn-container">
-                <button type="submit" name="save_attendance" class="save-btn"><i class="fas fa-save"></i> บันทึกการเช็คชื่อ</button>
+                <button type="submit" name="save_attendance" class="action-btn save-btn"><i class="fas fa-save"></i> บันทึกการเช็คชื่อ</button>
             </div>
         </form>
     </div>
@@ -334,20 +254,17 @@ tbody tr:hover { background-color: #d4eaf7; }
         <h2><i class="fas fa-history"></i> ดูประวัติพนักงาน</h2>
         <form method="POST">
             <div class="form-row">
-                <label>พนักงาน:
+                <label>พนักงาน
                     <select name="selected_emp">
                         <option value="">-- เลือกพนักงาน --</option>
-                        <?php
-                        if($emps->num_rows > 0) {
-                            $emps->data_seek(0);
-                            while($row = $emps->fetch_assoc()): ?>
+                        <?php if($emps->num_rows > 0) { $emps->data_seek(0); while($row = $emps->fetch_assoc()): ?>
                             <option value="<?= $row['employee_id'] ?>" <?= $selected_emp==$row['employee_id']?'selected':'' ?>><?= htmlspecialchars($row['full_name']) ?></option>
                         <?php endwhile; } ?>
                     </select>
                 </label>
-                <label>ตั้งแต่: <input type="date" name="start_date" value="<?= $start_date ?>"></label>
-                <label>ถึง: <input type="date" name="end_date" value="<?= $end_date ?>"></label>
-                <button type="submit" class="save-btn"><i class="fas fa-search"></i> ดูประวัติ</button>
+                <label>ตั้งแต่ <input type="date" name="start_date" value="<?= $start_date ?>"></label>
+                <label>ถึง <input type="date" name="end_date" value="<?= $end_date ?>"></label>
+                <button type="submit" class="action-btn find-btn"><i class="fas fa-search"></i> ดูประวัติ</button>
             </div>
         </form>
 
@@ -366,13 +283,12 @@ tbody tr:hover { background-color: #d4eaf7; }
             // สรุปรวม
             $stmt = $conn->prepare("
                 SELECT
-                        COUNT(CASE WHEN morning='present' AND afternoon='present' THEN 1 END) AS full_day,
-                        COUNT(CASE WHEN (morning='present' AND afternoon!='present') OR (morning!='present' AND afternoon='present') THEN 1 END) AS half_day,
-                        COUNT(DISTINCT CASE WHEN morning='late' OR afternoon='late' THEN attend_date END) AS late_day,
-                        COUNT(CASE WHEN morning='absent' OR afternoon='absent' THEN 1 END) AS absent_day,
-                        COUNT(CASE WHEN morning='leave' OR afternoon='leave' THEN 1 END) AS leave_day
-                FROM attendances
-                WHERE employee_id=? $date_condition
+                    COUNT(CASE WHEN morning='present' AND afternoon='present' THEN 1 END) AS full_day,
+                    COUNT(CASE WHEN (morning='present' AND afternoon!='present') OR (morning!='present' AND afternoon='present') THEN 1 END) AS half_day,
+                    COUNT(DISTINCT CASE WHEN morning='late' OR afternoon='late' THEN attend_date END) AS late_day,
+                    COUNT(CASE WHEN morning='absent' OR afternoon='absent' THEN 1 END) AS absent_day,
+                    COUNT(CASE WHEN morning='leave' OR afternoon='leave' THEN 1 END) AS leave_day
+                FROM attendances WHERE employee_id=? $date_condition
             ");
             $stmt->bind_param(...$params);
             $stmt->execute();
@@ -426,34 +342,37 @@ tbody tr:hover { background-color: #d4eaf7; }
     </div>
 </div>
 
-<?php if(isset($_SESSION['alert'])): ?>
 <script>
-    Swal.fire({
-        icon: '<?= $_SESSION['alert']['type'] ?>',
-        title: '<?= $_SESSION['alert']['message'] ?>',
-        showConfirmButton: false,
-        timer: 1800,
-        toast: true,
-        position: 'top-end',
-        timerProgressBar: true
-    });
-</script>
-<?php unset($_SESSION['alert']); endif; ?>
-
-<script>
+// ======== Status Button Functionality ========
 function selectStatus(empId, period, status, buttonElement) {
-    // 1. Set the hidden input value
     document.getElementById(`status-${empId}-${period}`).value = status;
-    
-    // 2. Find all buttons within the same group (parent container)
     const buttonGroup = buttonElement.parentElement.querySelectorAll('.status-btn');
-    
-    // 3. Remove 'selected' class from all buttons in that group
     buttonGroup.forEach(btn => btn.classList.remove('selected'));
-    
-    // 4. Add 'selected' class to the clicked button
     buttonElement.classList.add('selected');
 }
+
+// ======== Sidebar Toggle ========
+const sidebar = document.getElementById('sidebar');
+const content = document.getElementById('content');
+const toggleBtn = document.getElementById('toggle-btn');
+toggleBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('hidden');
+    content.classList.toggle('full-width');
+});
+if (window.matchMedia('(max-width: 768px)').matches) {
+    sidebar.classList.add('hidden');
+    content.classList.add('full-width');
+}
+
+// ======== SweetAlert for Session Messages ========
+<?php if(isset($_SESSION['alert'])): ?>
+Swal.fire({
+    icon: '<?= $_SESSION['alert']['type'] ?>',
+    title: '<?= $_SESSION['alert']['message'] ?>',
+    showConfirmButton: false, timer: 1800, toast: true,
+    position: 'top-end', timerProgressBar: true
+});
+<?php unset($_SESSION['alert']); endif; ?>
 </script>
 
 </body>

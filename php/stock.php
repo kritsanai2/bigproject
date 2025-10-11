@@ -3,26 +3,6 @@ session_start();
 require_once "auth.php";
 require_once "db.php";
 
-// ====================================================================================
-//  Sync Stock: ทำให้การ Sync สมบูรณ์โดยเพิ่มการ UPDATE กลับไปที่ order_details
-// ====================================================================================
-
-// 1. INSERT ข้อมูลการนำออกลงตาราง stock เฉพาะรายการที่ยังไม่เคยถูก Sync (stock_removed = 0)
-//    (เพิ่ม WHERE od.stock_removed = 0 เพื่อให้ทำงานเฉพาะกับรายการใหม่จริงๆ)
-$conn->query("
-    INSERT INTO stock (product_id, stock_type, stock_date, quantity, order_id)
-    SELECT od.product_id, 'remove', o.order_date, od.quantity, od.order_id
-    FROM order_details od
-    JOIN orders o ON od.order_id = o.order_id
-    WHERE od.stock_removed = 0
-");
-
-// 2. UPDATE flag 'stock_removed' ในตาราง order_details ให้เป็น 1 เพื่อไม่ให้ Sync ซ้ำ
-$conn->query("
-    UPDATE order_details SET stock_removed = 1 WHERE stock_removed = 0
-");
-
-
 // ================== เพิ่มข้อมูลสต็อก ==================
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['add_stock'])) {
     $product_id = (int)$_POST['product_id'];
@@ -118,7 +98,7 @@ if ($balances_result) {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>จัดการข้อมูลคลังสินค้า</title>
+    <title>💧 จัดการข้อมูลคลังสินค้า</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
@@ -605,13 +585,13 @@ if ($balances_result) {
 
     <div class="sidebar" id="sidebar">
         <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-        <h2>จัดการข้อมูลคลังสินค้า</h2>
+        <h2>ระบบจัดการ</h2>
         <a href="index.php"><i class="fas fa-home"></i>&nbsp; <span>หน้าหลัก</span></a>
         <a href="stock.php?filter=all" class="<?= $filter == 'all' ? 'active' : '' ?>"><i class="fas fa-list"></i>&nbsp; <span>ทั้งหมด</span></a>
         <a href="stock.php?filter=import" class="<?= $filter == 'import' ? 'active' : '' ?>"><i class="fas fa-arrow-down"></i>&nbsp; <span>นำเข้า</span></a>
         <a href="stock.php?filter=remove" class="<?= $filter == 'remove' ? 'active' : '' ?>"><i class="fas fa-arrow-up"></i>&nbsp; <span>นำออก</span></a>
         <a href="orders.php"><i class="fas fa-shopping-cart"></i>&nbsp; <span>คำสั่งซื้อ</span></a>
-        <a href="stock_dashboard.php"><i class="fas fa-chart-pie"></i>&nbsp; <span>จัดการรายงาน</span></a>
+        <a href="stock_dashboard.php"><i class="fas fa-chart-line"></i>&nbsp; <span>จัดการรายงาน</span></a>
     </div>
 
     <div class="content" id="content">

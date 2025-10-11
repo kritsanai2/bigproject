@@ -145,315 +145,327 @@ if ($filter_year > 0) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>รายงานรายรับ-รายจ่าย</title>
+    <title>💧 รายงานรายรับ-รายจ่าย</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-    /* CSS ทั้งหมดเหมือนเดิม (ไม่มีการเปลี่ยนแปลง) */
     /* ================================
     Root Variables
-================================ */
-:root {
-    --primary-color: #3498db;
-    --secondary-color: #2c3e50;
-    --light-teal-bg: #f0f8ff;
-    --navy-blue: #001f3f;
-    --white: #ffffff;
-    --light-gray: #f8f9fa;
-    --gray-border: #ced4da;
-    --text-color: #495057;
-    --success: #2ecc71;
-    --danger: #e74c3c;
-    --warning: #f39c12;
-    --info: #9b59b6;
-}
+    ================================ */
+    :root {
+        --primary-color: #3498db;
+        --secondary-color: #2c3e50;
+        --light-teal-bg: #f0f8ff;
+        --navy-blue: #001f3f;
+        --white: #ffffff;
+        --light-gray: #f8f9fa;
+        --gray-border: #ced4da;
+        --text-color: #495057;
+        --success: #2ecc71;
+        --danger: #e74c3c;
+        --warning: #f39c12;
+        --info: #9b59b6; /* 💜 สีสำหรับปุ่มรูปภาพ */
+        --info-blue: #3498db;
+    }
 
-/* ================================
+    /* ================================
     Reset & Base
-================================ */
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
-body {
-    font-family: 'Sarabun', sans-serif;
-    background-color: var(--light-teal-bg);
-    display: flex;
-    color: var(--text-color);
-}
+    ================================ */
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+    body {
+        font-family: 'Sarabun', sans-serif;
+        background-color: var(--light-teal-bg);
+        display: flex;
+        color: var(--text-color);
+    }
 
-/* ================================
+    /* ================================
     Sidebar
-================================ */
-.sidebar {
-    width: 250px;
-    height: 100vh;
-    position: fixed;
-    top: 0; left: 0;
-    padding: 1.5rem;
-    background: linear-gradient(180deg, var(--primary-color), #2980b9);
-    color: var(--white);
-    box-shadow: 2px 0 15px rgba(0,0,0,0.1);
-    display: flex;
-    flex-direction: column;
-    z-index: 1000;
-    transition: transform 0.3s;
-}
-.sidebar.hidden { transform: translateX(-100%); }
+    ================================ */
+    .sidebar {
+        width: 250px;
+        height: 100vh;
+        position: fixed;
+        top: 0; left: 0;
+        padding: 1.5rem;
+        background: linear-gradient(180deg, var(--primary-color), #2980b9);
+        color: var(--white);
+        box-shadow: 2px 0 15px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        z-index: 1000;
+        transition: transform 0.3s;
+    }
+    .sidebar.hidden { transform: translateX(-100%); }
 
-.sidebar-header {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-.logo {
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    border: 4px solid rgba(255,255,255,0.3);
-    object-fit: cover;
-    margin-bottom: 1rem;
-}
-.sidebar a {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.8rem 1rem;
-    margin-bottom: 0.5rem;
-    font-size: 1.1rem;
-    text-decoration: none;
-    color: var(--white);
-    border-radius: 8px;
-    transition: all 0.2s;
-}
-.sidebar a:hover {
-    background-color: rgba(255,255,255,0.15);
-    transform: translateX(5px);
-}
-.sidebar a.active { background-color: rgba(0,0,0,0.2); }
+    .sidebar-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .logo {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        border: 4px solid rgba(255,255,255,0.3);
+        object-fit: cover;
+        margin-bottom: 1rem;
+    }
+    .sidebar a {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.8rem 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+        text-decoration: none;
+        color: var(--white);
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    .sidebar a:hover {
+        background-color: rgba(255,255,255,0.15);
+        transform: translateX(5px);
+    }
+    .sidebar a.active { background-color: rgba(0,0,0,0.2); }
 
-.toggle-btn {
-    position: fixed;
-    top: 1rem; right: 1rem;
-    z-index: 1001;
-    background-color: var(--primary-color);
-    color: var(--white);
-    border: none;
-    border-radius: 50%;
-    width: 40px; height: 40px;
-    font-size: 1.5rem;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+    .toggle-btn {
+        position: fixed;
+        top: 1rem; right: 1rem;
+        z-index: 1001;
+        background-color: var(--primary-color);
+        color: var(--white);
+        border: none;
+        border-radius: 50%;
+        width: 40px; height: 40px;
+        font-size: 1.5rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
 
-/* ================================
+    /* ================================
     Main Content
-================================ */
-.main {
-    margin-left: 250px;
-    padding: 2rem;
-    flex-grow: 1;
-    width: calc(100% - 250px);
-    transition: margin-left 0.3s;
-}
-.main.full-width {
-    margin-left: 0;
-    width: 100%;
-}
-.header-main {
-    border-bottom: 2px solid var(--primary-color);
-    padding-bottom: 1.5rem;
-    margin-bottom: 2rem;
-}
-.header-main h1 {
-    font-size: 2.5rem;
-    color: var(--navy-blue);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
+    ================================ */
+    .main {
+        margin-left: 250px;
+        padding: 2rem;
+        flex-grow: 1;
+        width: calc(100% - 250px);
+        transition: margin-left 0.3s;
+    }
+    .main.full-width {
+        margin-left: 0;
+        width: 100%;
+    }
+    .header-main {
+        border-bottom: 2px solid var(--primary-color);
+        padding-bottom: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .header-main h1 {
+        font-size: 2.5rem;
+        color: var(--navy-blue);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
 
-/* ================================
+    /* ================================
     Containers & Filters
-================================ */
-.container {
-    background-color: var(--white);
-    padding: 25px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-}
-.filter-box {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1.5rem;
-}
-.filter-form {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    align-items: center;
-}
-.filter-form label,
-.filter-form select,
-.filter-form button { font-size: 1rem; }
-.filter-form select {
-    padding: 0.65rem;
-    border-radius: 8px;
-    border: 1px solid var(--gray-border);
-}
+    ================================ */
+    .container {
+        background-color: var(--white);
+        padding: 25px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+    .filter-box {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.5rem;
+    }
+    .filter-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+    }
+    .filter-form label,
+    .filter-form select,
+    .filter-form button { font-size: 1rem; }
+    .filter-form select {
+        padding: 0.65rem;
+        border-radius: 8px;
+        border: 1px solid var(--gray-border);
+    }
 
-/* ================================
+    /* ================================
     Buttons
-================================ */
-.action-buttons { display: flex; gap: 0.75rem; }
-.action-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.7rem 1.2rem;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    color: var(--white);
-    text-decoration: none;
-    transition: all 0.2s;
-}
-.action-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-.btn-filter { background-color: var(--primary-color); }
-.btn-pdf     { background-color: var(--danger); }
-.btn-excel  { background-color: var(--success); }
-.btn-email  { background-color: var(--warning); color: #333; }
+    ================================ */
+    .action-buttons { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.7rem 1.2rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--white);
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .btn-filter { background-color: var(--primary-color); }
+    .btn-pdf    { background-color: var(--danger); }
+    .btn-excel  { background-color: var(--success); }
+    .btn-email  { background-color: var(--warning); color: #333; }
 
-/* ================================
+    /* ================================
     Tables
-================================ */
-table { width: 100%; border-collapse: collapse; }
-thead th {
-    background-color: var(--navy-blue);
-    color: var(--white);
-    padding: 15px;
-    text-align: center;
-}
-tbody td {
-    padding: 15px;
-    border-bottom: 1px solid #e0e0e0;
-}
-tbody tr:nth-child(even) { background-color: var(--light-gray); }
-tbody tr:hover { background-color: #d4eaf7; }
+    ================================ */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+        background-color: var(--navy-blue);
+        color: var(--white);
+        padding: 15px;
+        text-align: center;
+    }
+    tbody td {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    tbody tr:nth-child(even) { background-color: var(--light-gray); }
+    tbody tr:hover { background-color: #d4eaf7; }
 
-td.income  { color: var(--success); font-weight: bold; }
-td.expense { color: var(--danger); font-weight: bold; }
-td.amount  { text-align: right; }
-td.center  { text-align: center; }
+    td.income  { color: var(--success); font-weight: bold; }
+    td.expense { color: var(--danger); font-weight: bold; }
+    td.amount  { text-align: right; }
+    td.center  { text-align: center; }
 
-/* ================================
+    .btn-action-table {
+        padding: 0.5rem 1rem; border-radius: 6px; border: none;
+        cursor: pointer; font-size: 0.9rem; color: white;
+        transition: transform 0.2s ease; white-space: nowrap;
+        display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .btn-action-table:hover { transform: translateY(-2px); }
+    .btn-preview { background-color: var(--info-blue); }
+    .btn-preview:hover { background-color: #2980b9; }
+
+
+    /* ================================
     Summary Cards
-================================ */
-.summary-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 20px;
-}
-.summary-card {
-    background-color: var(--white);
-    border-radius: 10px;
-    padding: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    border-left: 5px solid;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-}
-.summary-card .icon { font-size: 2.5rem; }
-.summary-card .info h4 {
-    margin: 0;
-    font-size: 1rem;
-    color: var(--secondary-color);
-}
-.summary-card .info p {
-    margin: 0;
-    font-size: 1.8rem;
-    font-weight: 700;
-}
-.card-income  { border-color: var(--success); }
-.card-income .icon, .card-income .info p { color: var(--success); }
-.card-expense { border-color: var(--danger); }
-.card-expense .icon, .card-expense .info p { color: var(--danger); }
-.card-balance { border-color: var(--primary-color); }
-.card-balance .icon { color: var(--primary-color); }
-.card-balance .info p { color: <?= $balance >= 0 ? 'var(--success)' : 'var(--danger)' ?>; }
+    ================================ */
+    .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 20px;
+    }
+    .summary-card {
+        background-color: var(--white);
+        border-radius: 10px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border-left: 5px solid;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .summary-card .icon { font-size: 2.5rem; }
+    .summary-card .info h4 {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--secondary-color);
+    }
+    .summary-card .info p {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+    .card-income  { border-color: var(--success); }
+    .card-income .icon, .card-income .info p { color: var(--success); }
+    .card-expense { border-color: var(--danger); }
+    .card-expense .icon, .card-expense .info p { color: var(--danger); }
+    .card-balance { border-color: var(--primary-color); }
+    .card-balance .icon { color: var(--primary-color); }
+    .card-balance .info p { color: <?= $balance >= 0 ? 'var(--success)' : 'var(--danger)' ?>; }
 
-/* ================================
+    /* ================================
     Modal
-================================ */
-.modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background-color: rgba(0,31,63,0.6);
-    backdrop-filter: blur(5px);
-    z-index: 2000;
-    justify-content: center;
-    align-items: center;
-}
-.modal-content {
-    background-color: var(--white);
-    padding: 30px 40px;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    width: 90%; max-width: 500px;
-}
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 1rem;
-    margin-bottom: 1.5rem;
-}
-.modal-header h3 {
-    margin: 0;
-    color: var(--navy-blue);
-    font-size: 1.8rem;
-}
-.close-button {
-    background: none;
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: #aaa;
-    transition: all 0.2s ease;
-}
-.close-button:hover {
-    color: var(--danger);
-    transform: rotate(90deg);
-}
-.modal-body input[type="email"] {
-    width: 100%;
-    padding: 0.75rem;
-    border-radius: 8px;
-    border: 1px solid var(--gray-border);
-    margin-top: 0.5rem;
-    font-size: 1rem;
-}
-.modal-footer {
-    margin-top: 1.5rem;
-    display: flex;
-    justify-content: flex-end;
-}
+    ================================ */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background-color: rgba(0,31,63,0.6);
+        backdrop-filter: blur(5px);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+    }
+    .modal-content {
+        background-color: var(--white);
+        padding: 30px 40px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        width: 90%; max-width: 500px;
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .modal-header h3 {
+        margin: 0;
+        color: var(--navy-blue);
+        font-size: 1.8rem;
+    }
+    .close-button {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        cursor: pointer;
+        color: #aaa;
+        transition: all 0.2s ease;
+    }
+    .close-button:hover {
+        color: var(--danger);
+        transform: rotate(90deg);
+    }
+    .modal-body input[type="email"] {
+        width: 100%;
+        padding: 0.75rem;
+        border-radius: 8px;
+        border: 1px solid var(--gray-border);
+        margin-top: 0.5rem;
+        font-size: 1rem;
+    }
+    .modal-footer {
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: flex-end;
+    }
 
-</style>
+    </style>
 </head>
 <body>
 
@@ -462,9 +474,10 @@ td.center  { text-align: center; }
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-        <h4>รายงานรายรับ-รายจ่าย</h4>
+       <h2>ระบบจัดการ</h2>
     </div>
     <a href="dashboard.php"><i class="fas fa-home fa-fw"></i>&nbsp; <span>กลับ</span></a>
+    <a href="transactions.php"><i class="fas fa-money-bill-wave fa-fw"></i>&nbsp; <span>จัดการรายรับ-รายจ่าย</span></a>
     <a href="transactions_dashboard.php" class="<?= empty($type_filter) ? 'active' : '' ?>"><i class="fas fa-list fa-fw"></i>&nbsp; <span>ทั้งหมด</span></a>
     <a href="transactions_dashboard.php?type=income" class="<?= ($type_filter=='income') ? 'active' : '' ?>"><i class="fas fa-arrow-down fa-fw"></i>&nbsp; <span>รายรับ</span></a>
     <a href="transactions_dashboard.php?type=expense" class="<?= ($type_filter=='expense') ? 'active' : '' ?>"><i class="fas fa-arrow-up fa-fw"></i>&nbsp; <span>รายจ่าย</span></a>
@@ -476,7 +489,7 @@ td.center  { text-align: center; }
         <h1><i class="fas fa-receipt"></i>&nbsp; รายงานรายรับ-รายจ่าย</h1>
     </div>
 
-    <?php if (empty($type_filter) || $type_filter === 'expense'): ?>
+    <?php if (empty($type_filter) || $type_filter === 'expense' || $type_filter === 'income'): ?>
     <div class="summary-cards">
         <?php if (empty($type_filter) || $type_filter === 'income'): ?>
         <div class="summary-card card-income">
@@ -519,7 +532,6 @@ td.center  { text-align: center; }
                 <select name="year" id="year-select">
                     <option value="0" <?= ($filter_year == 0) ? 'selected' : '' ?>>ทุกปี</option>
                     <?php
-                    // <-- ปรับปรุง: ให้ปีเริ่มต้นที่ 2024 และสิ้นสุดที่ปีปัจจุบัน + 5
                     $start_year = 2024;
                     $end_year = intval(date('Y')) + 5;
                     for($y = $start_year; $y <= $end_year; $y++):
@@ -560,23 +572,24 @@ td.center  { text-align: center; }
                 </thead>
                 <tbody>
                     <?php if (!empty($all_rows)):
-                        $i = 1; // <-- แก้ไข: เริ่มนับจาก 1
+                        $i = 1;
                         foreach($all_rows as $row):
                             $desc = $row['transaction_type'] == 'expense'
                             ? ($row['expense_type'] ?? '-')
                             : ($row['product_name'] ?? '-');
                     ?>
                     <tr>
-                        <td class="center"><?= $i++ ?></td> <td class="center <?= $row['transaction_type'] ?>"><?= $row['transaction_type']=='income' ? '<i class="fas fa-plus-circle"></i> ' : '<i class="fas fa-minus-circle"></i> ' ?><?= thai_type($row['transaction_type']) ?></td>
+                        <td class="center"><?= $i++ ?></td>
+                        <td class="center <?= $row['transaction_type'] ?>"><?= $row['transaction_type']=='income' ? '<i class="fas fa-plus-circle"></i> ' : '<i class="fas fa-minus-circle"></i> ' ?><?= thai_type($row['transaction_type']) ?></td>
                         <td class="amount <?= $row['transaction_type'] ?>"><?= number_format($row['amount'], 2) ?></td>
                         <td class="center"><?= date('d/m/', strtotime($row['transaction_date'])) . (date('Y', strtotime($row['transaction_date'])) + 543) ?></td>
                         <td style="text-align:left;"><?= htmlspecialchars($desc) ?></td>
                         <td class="center"><?= htmlspecialchars($row['order_id'] ?? '-') ?></td>
                         <td class="center">
                             <?php if (!empty($row['slip_image'])): ?>
-                                <a href="<?= '../' . htmlspecialchars($row['slip_image']) ?>" target="_blank" title="คลิกเพื่อดูภาพใหญ่">
-                                    <img src="<?= '../' . htmlspecialchars($row['slip_image']) ?>" alt="Slip" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; cursor: pointer;">
-                                </a>
+                                <button type="button" class="btn-action-table btn-preview" onclick="showImagePreview('<?= htmlspecialchars($row['slip_image']) ?>')">
+                                    <i class="fas fa-eye"></i> ดูรูปภาพ
+                                </button>
                             <?php else: ?>
                                 -
                             <?php endif; ?>
@@ -602,10 +615,10 @@ td.center  { text-align: center; }
         </div>
         <div class="modal-body">
             <label>เลือกรูปแบบไฟล์:</label>
-            <div style="margin: 0.5rem 0 1.5rem; display: flex; gap: 2rem;">
+            <div style="margin: 0.5rem 0 1.5rem; display: flex; gap: 2rem; flex-wrap: wrap;">
                 <label><input type="checkbox" name="file_format" value="pdf" checked> PDF</label>
-                <label><input type="checkbox" name="file_format" value="excel"> Excel (.csv)</label>
-            </div>
+                <label><input type="checkbox" name="file_format" value="excel"> Excel</label>
+                </div>
             <label for="recipientEmail">อีเมลผู้รับ:</label>
             <input type="email" id="recipientEmail" placeholder="example@email.com" required>
             <div id="emailStatus" style="margin-top: 1rem; text-align: center;"></div>
@@ -617,7 +630,19 @@ td.center  { text-align: center; }
 </div>
 
 <script>
-// JavaScript ทั้งหมดเหมือนเดิม (ไม่มีการเปลี่ยนแปลง)
+// ฟังก์ชันสำหรับแสดงรูปภาพใน Modal
+function showImagePreview(imagePath) {
+    Swal.fire({
+        imageUrl: '../' + imagePath,
+        imageAlt: 'รูปภาพประกอบรายจ่าย',
+        imageHeight: '80vh',
+        width: 'auto',
+        showConfirmButton: false,
+        showCloseButton: true,
+        backdrop: `rgba(0,31,63,0.7)`
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     const main = document.getElementById('main');
@@ -631,6 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Export and Modal Logic ---
+    // ตัวแปรสำหรับปุ่มรูปภาพถูกลบออกไปแล้ว
     const pdfButton = document.getElementById('pdfButton');
     const excelButton = document.getElementById('excelButton');
     const emailModalButton = document.getElementById('emailModalButton');
@@ -641,6 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${baseUrl}?${params.toString()}`;
     }
 
+    // Event Listener สำหรับปุ่มรูปภาพถูกลบออกไปแล้ว
     if (pdfButton) pdfButton.addEventListener('click', () => window.open(buildExportUrl('export_transactions_pdf.php'), '_blank'));
     if (excelButton) excelButton.addEventListener('click', () => window.location.href = buildExportUrl('export_transactions_excel.php'));
 
@@ -656,8 +683,10 @@ document.addEventListener('DOMContentLoaded', () => {
             recipientEmailInput.value = '';
             emailStatus.innerHTML = '';
             sendEmailButton.disabled = false;
+            // รีเซ็ตค่า Checkboxes
             emailModal.querySelector('input[value="pdf"]').checked = true;
             emailModal.querySelector('input[value="excel"]').checked = false;
+            // บรรทัดสำหรับรีเซ็ต checkbox รูปภาพถูกลบออกไปแล้ว
         };
 
         const closeModal = () => { emailModal.style.display = 'none'; };

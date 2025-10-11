@@ -72,7 +72,7 @@ if ($year_filter > 0) {
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>รายงานเงินเดือนพนักงาน</title>
+<title>💧 รายงานเงินเดือนพนักงาน</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -224,9 +224,10 @@ if ($year_filter > 0) {
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-        <h2>ข้อมูลเงินเดือน</h2>
+        <h2>ระบบจัดการ</h2>
     </div>
     <a href="dashboard.php"><i class="fas fa-home fa-fw"></i>&nbsp; <span>กลับ</span></a>
+    <a href="employees.php"><i class="fas fa-users fa-fw"></i>&nbsp; <span>จัดการข้อมูลพนักงาน</span></a>
     <a href="employee_dashboard.php" class="active"><i class="fas fa-users fa-fw"></i>&nbsp; <span>รายงานเงินเดือน</span></a>
     <a href="employee_graphs.php"><i class="fas fa-chart-pie fa-fw"></i>&nbsp; <span>รายงานกราฟ</span></a>
 </div>

@@ -68,7 +68,7 @@ if ($filter_year > 0) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>รายงานการขายรายสินค้า</title>
+<title>💧 รายงานการขายรายสินค้า</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -345,9 +345,10 @@ tbody tr:hover {
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="../img/da.jfif" alt="โลโก้โรงน้ำดื่ม" class="logo">
-        <h2>รายงานการขาย</h2>
+        <h2>ระบบจัดการ</h2>
     </div>
-    <a href="dashboard.php"><i class="fas fa-home fa-fw"></i>&nbsp; <span>หน้าหลัก</span></a>
+    <a href="dashboard.php"><i class="fas fa-home fa-fw"></i>&nbsp; <span>กลับ</span></a>
+    <a href="orders.php"><i class="fas fa-shopping-cart fa-fw"></i>&nbsp; <span>จัดการคำสั่งซื้อ</span></a>
     <a href="orders_dashboard.php" class="active"><i class="fas fa-receipt fa-fw"></i>&nbsp; <span>รายงานการขาย</span></a>
     <a href="orders_graphs.php"><i class="fas fa-chart-pie fa-fw"></i>&nbsp; <span>กราฟยอดขาย</span></a>
 </div>

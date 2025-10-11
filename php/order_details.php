@@ -178,7 +178,7 @@ $products = $conn->query("SELECT product_id, product_name, product_type, price F
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <title>จัดการรายละเอียดคำสั่งซื้อ #<?= $order_id ?></title>
+    <title>💧 จัดการรายละเอียดคำสั่งซื้อ #<?= $order_id ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

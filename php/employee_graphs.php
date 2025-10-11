@@ -63,7 +63,7 @@ $datasetsYear = [['label'=>'เงินเดือนรวม (บาท)','d
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📊 กราฟรายงานเงินเดือน</title>
+<title>💧 กราฟรายงานเงินเดือน</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -138,7 +138,7 @@ $datasetsYear = [['label'=>'เงินเดือนรวม (บาท)','d
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <img src="../img/da.jfif" alt="โลโก้" class="logo">
-        <h2>รายงานเงินเดือน</h2>
+       <h2>ระบบจัดการ</h2>
     </div>
     <a href="employee_dashboard.php"><i class="fas fa-users fa-fw"></i>&nbsp; <span>รายการเงินเดือน</span></a>
     <a href="employee_graphs.php" class="active"><i class="fas fa-chart-pie fa-fw"></i>&nbsp; <span>กราฟเงินเดือน</span></a>

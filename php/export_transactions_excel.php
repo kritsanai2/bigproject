@@ -26,7 +26,7 @@ elseif ($type_filter == 'expense') $report_title .= "รายจ่าย";
 else $report_title .= "รายรับ-รายจ่าย";
 if ($filter_month > 0) $report_title .= " เดือน " . thai_month_name($filter_month);
 if ($filter_year > 0) $report_title .= " ปี " . ($filter_year + 543);
-if ($filter_month == 0 && $filter_year == 0) $report_title .= "ทั้งหมด";
+if ($filter_month == 0 && $filter_year == 0 && empty($type_filter)) $report_title .= "ทั้งหมด";
 
 // 3. ดึงข้อมูลรายการธุรกรรม
 $sql = "SELECT t.*, od.product_id, p.product_name, o.order_id
@@ -44,81 +44,82 @@ if ($filter_month > 0) { $where_clauses[] = "MONTH(t.transaction_date) = ?"; $pa
 if ($filter_year > 0) { $where_clauses[] = "YEAR(t.transaction_date) = ?"; $params[] = $filter_year; $types .= "i"; }
 
 if (!empty($where_clauses)) { $sql .= " WHERE " . implode(" AND ", $where_clauses); }
-$sql .= " ORDER BY t.transaction_date DESC, t.transaction_id DESC";
+// หมายเหตุ: การเรียงลำดับจะทำหลังจากรวมข้อมูลแล้ว
 
 $stmt = $conn->prepare($sql);
 if (!empty($params)) { $stmt->bind_param($types, ...$params); }
 $stmt->execute();
-$result = $stmt->get_result();
-$rows = $result->fetch_all(MYSQLI_ASSOC);
+$transaction_rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 
-// --- (เพิ่มใหม่) ดึงยอดรวมเงินเดือนจากตาราง `salary` ---
-$total_salary_expense = 0;
+// --- (แก้ไข) ดึงข้อมูลเงินเดือนทีละรายการ ไม่ใช่ยอดรวม ---
+$salary_rows = [];
 if ($type_filter === '' || $type_filter === 'expense') {
-    $salary_sql = "SELECT SUM(total_amount) as total FROM salary";
+    // 1. แก้ SQL ให้ดึงข้อมูลมาทีละแถว
+    $salary_sql = "SELECT total_amount, pay_month FROM salary";
     $salary_params = [];
     $salary_types = "";
     $salary_where = [];
 
-    if ($filter_month > 0) {
-        $salary_where[] = "MONTH(pay_month) = ?";
-        $salary_params[] = $filter_month;
-        $salary_types .= "i";
-    }
-    if ($filter_year > 0) {
-        $salary_where[] = "YEAR(pay_month) = ?";
-        $salary_params[] = $filter_year;
-        $salary_types .= "i";
-    }
+    if ($filter_month > 0) { $salary_where[] = "MONTH(pay_month) = ?"; $salary_params[] = $filter_month; $salary_types .= "i"; }
+    if ($filter_year > 0) { $salary_where[] = "YEAR(pay_month) = ?"; $salary_params[] = $filter_year; $salary_types .= "i"; }
 
-    if (!empty($salary_where)) {
-        $salary_sql .= " WHERE " . implode(" AND ", $salary_where);
-    }
+    if (!empty($salary_where)) { $salary_sql .= " WHERE " . implode(" AND ", $salary_where); }
 
     $stmt_salary = $conn->prepare($salary_sql);
-    if (!empty($salary_params)) {
-        $stmt_salary->bind_param($salary_types, ...$salary_params);
-    }
+    if (!empty($salary_params)) { $stmt_salary->bind_param($salary_types, ...$salary_params); }
     $stmt_salary->execute();
-    $salary_result = $stmt_salary->get_result()->fetch_assoc();
-    $total_salary_expense = $salary_result['total'] ?? 0;
+    $salary_results = $stmt_salary->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    // 2. สร้าง Array ใหม่ให้มีโครงสร้างเหมือน transaction
+    foreach($salary_results as $salary) {
+        $salary_rows[] = [
+            'transaction_type' => 'expense',
+            'amount' => $salary['total_amount'],
+            'transaction_date' => $salary['pay_month'],
+            'expense_type' => 'เงินเดือนพนักงานเดือน ' . thai_month_name(date('n', strtotime($salary['pay_month']))),
+            'product_name' => null,
+            'order_id' => null
+        ];
+    }
 }
 
+// --- (เพิ่มใหม่) รวมและเรียงลำดับข้อมูลทั้งหมด ---
+// 3. รวม Array ทั้งสองเข้าด้วยกัน
+$all_rows = array_merge($transaction_rows, $salary_rows);
 
-// --- (แก้ไข) คำนวณยอดรวม ---
+// 4. เรียงข้อมูลทั้งหมดตามวันที่จากใหม่ไปเก่า
+usort($all_rows, function($a, $b) {
+    return strtotime($b['transaction_date']) - strtotime($a['transaction_date']);
+});
+
+
+// --- (แก้ไข) คำนวณยอดรวมจากข้อมูลที่รวมกันแล้ว ---
 $total_income = 0; 
 $total_expense = 0;
-foreach($rows as $row){
+foreach($all_rows as $row){ // <-- ใช้ $all_rows
     if($row['transaction_type'] === 'income'){ $total_income += $row['amount']; } else { $total_expense += $row['amount']; }
 }
-
-// (แก้ไข) นำยอดรวมเงินเดือนมาบวกเพิ่มเข้าไปในรายจ่าย
-$total_expense += $total_salary_expense;
-
 $balance = $total_income - $total_expense;
+
 
 // 4. สร้างและส่งออกไฟล์ CSV
 $filename = "transactions_report_" . date('Ymd') . ".csv";
 header('Content-Type: text/csv; charset=utf-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 
-echo "\xEF\xBB\xBF"; // BOM (Byte Order Mark) สำหรับ UTF-8
-
+echo "\xEF\xBB\xBF"; 
 $output = fopen('php://output', 'w');
 
-// เขียนหัวข้อ
 fputcsv($output, [$report_title]);
-fputcsv($output, []); // บรรทัดว่าง
-
-// เขียนหัวตาราง
+fputcsv($output, []); 
 fputcsv($output, ['ลำดับ', 'ประเภท', 'จำนวนเงิน (บาท)', 'วันที่', 'รายละเอียด', 'รหัสสั่งซื้อ']);
 
-// เขียนข้อมูล
+// --- (แก้ไข) เขียนข้อมูลจาก Array ที่รวมแล้ว ---
 $i = 1;
-if (!empty($rows)) {
-    foreach ($rows as $row) {
-        $desc = $row['transaction_type'] == 'expense' ? ($row['expense_type'] ?? '-') : ($row['product_name'] ?? '-');
+if (!empty($all_rows)) { // <-- ใช้ $all_rows
+    foreach ($all_rows as $row) { // <-- ใช้ $all_rows
+        $desc = $row['transaction_type'] == 'expense' ? ($row['expense_type'] ?? ($row['product_name'] ?? '-')) : ($row['product_name'] ?? '-');
         $date_be = date('d/m/', strtotime($row['transaction_date'])) . (date('Y', strtotime($row['transaction_date'])) + 543);
         
         fputcsv($output, [
@@ -131,12 +132,14 @@ if (!empty($rows)) {
         ]);
     }
     
-    // แถวสรุป (จะใช้ค่าที่คำนวณใหม่โดยอัตโนมัติ)
-    fputcsv($output, []); // บรรทัดว่าง
+    fputcsv($output, []);
     fputcsv($output, ['สรุปยอดรวม']);
     fputcsv($output, ['ยอดรวมรายรับ', number_format($total_income, 2)]);
     fputcsv($output, ['ยอดรวมรายจ่าย', number_format($total_expense, 2)]);
     fputcsv($output, ['ยอดคงเหลือ', number_format($balance, 2)]);
+} else {
+    // เพิ่มกรณีไม่พบข้อมูลเลย
+    fputcsv($output, ['-- ไม่พบข้อมูลตามเงื่อนไขที่เลือก --']);
 }
 
 fclose($output);
