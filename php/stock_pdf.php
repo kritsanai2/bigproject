@@ -67,13 +67,14 @@ foreach ($rows as $row) {
     }
 }
 
-// 4. สร้างเอกสาร PDF
+// 4. สร้างเอกสาร PDF  หรือ สร้างออบเจกต์ PDF ใหม่
 $pdf = new FPDF();
+//เพิ่มฟอนต์ภาษาไทย (ในที่นี้คือ THSarabunNew)  b ตัวหนา
 $pdf->AddFont('THSarabunNew', '', 'THSarabunNew.php'); 
 $pdf->AddFont('THSarabunNew', 'B', 'THSarabunNew.php');
 $pdf->AddPage();
 
-// หัวข้อรายงาน
+// หัวข้อรายงาน //กำหนดฟอนต์ (THSarabunNew, ตัวหนา, ขนาด 18)
 $pdf->SetFont('THSarabunNew', 'B', 18);
 $pdf->Cell(0, 10, iconv('UTF-8', 'TIS-620', $report_title), 0, 1, 'C');
 $pdf->Ln(5);

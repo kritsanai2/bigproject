@@ -39,7 +39,7 @@ if(isset($_POST['calculate'])){
             // มาสายยังได้เงินเต็มวัน
             $salary = ((int)$row['full_days'] * $full_rate) + ((int)$row['half_days'] * $half_rate) + ((int)$row['late_days'] * $full_rate);
             $work_days_paid = (float)$row['full_days'] + ((float)$row['half_days'] * 0.5) + (float)$row['late_days'];
-
+//Arrray
             $calculated_data[$row['employee_id']] = [
                 'full_name' => $row['full_name'],
                 'full' => (int)$row['full_days'],

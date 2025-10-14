@@ -210,7 +210,7 @@ if ($year_filter > 0) {
         padding-top: 1.5rem;
     }
     #sendEmailButton {
-        background-color: var(--primary-color);
+        background-color: var(--warning);
     }
     #sendEmailButton:hover {
         background-color: #2980b9;

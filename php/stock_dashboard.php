@@ -474,11 +474,11 @@ if ($month_filter == 0 && $filter_year == 0 && empty($type_filter)) {
                     </thead>
                     <tbody>
                         <?php if (!empty($rows)) :
-                            $i = 1;
+                            $i = count($rows);
                             foreach ($rows as $row) :
                         ?>
                                 <tr>
-                                    <td style="text-align:center;"><?= $i++ ?></td>
+                                    <td style="text-align:center;"><?= $i-- ?></td>
                                     <td style="text-align:center;"><?= date('d/m/', strtotime($row['stock_date'])) . (date('Y', strtotime($row['stock_date'])) + 543) ?></td>
                                     <td style="text-align:left;"><?= htmlspecialchars($row['product_name']) ?></td>
                                     <td class="<?= $row['stock_type'] == 'import' ? 'stock-import' : 'stock-remove' ?>"><?= thai_type($row['stock_type']) ?></td>

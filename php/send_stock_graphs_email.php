@@ -18,16 +18,16 @@ function thai_month($m) {
 $tempFiles = []; // Array to keep track of temp files for cleanup
 
 try {
-    // --- รับค่าจาก POST ---
+    // --- รับค่าจาก POST --- รับค่ากราฟ Base64 encoded image ที่ส่งมาจาก frontend
     $dailyChartImg   = $_POST['dailyChartImg']   ?? null;
     $monthlyChartImg = $_POST['monthlyChartImg'] ?? null;
     $yearlyChartImg  = $_POST['yearlyChartImg']  ?? null;
-    // **รับค่าฟิลเตอร์ของแต่ละกราฟให้ถูกต้อง**
+    // **รับค่าฟิลเตอร์ของแต่ละกราฟให้ถูกต้อง**กำหนดค่า ปี/เดือน ของแต่ละกราฟ ถ้าไม่มีค่า → ใช้ค่า ปัจจุบัน
     $daily_filter_year   = (int)($_POST['daily_year'] ?? date('Y'));
     $daily_filter_month  = (int)($_POST['daily_month'] ?? date('m'));
     $monthly_filter_year = (int)($_POST['year'] ?? date('Y')); // 'year' is for the monthly chart
     $recipient_email = trim($_POST['email'] ?? '');
-
+//ตรวจสอบกราฟ ถ้า กราฟใดหายไป หรือ อีเมลไม่ถูกต้อง
     if (!$dailyChartImg || !$monthlyChartImg || !$yearlyChartImg || !filter_var($recipient_email, FILTER_VALIDATE_EMAIL)) {
         throw new Exception("ข้อมูลกราฟหรืออีเมลผู้รับไม่ถูกต้อง");
     }
@@ -47,7 +47,7 @@ try {
     $yearlyTempFile  = saveBase64Image($yearlyChartImg, 'yearly_stock');
     $tempFiles = [$dailyTempFile, $monthlyTempFile, $yearlyTempFile];
     
-    // --- สร้าง PDF ---
+    // --- สร้าง PDF --- แนวตั้ง 'mm' = มิลลิเมตร, 'pt' = จุด, 'cm' = เซนติเมตร, 'in' = นิ้ว 
     $pdf = new FPDF('P', 'mm', 'A4');
     $pdf->AddFont('THSarabunNew','','THSarabunNew.php');
     $pdf->AddFont('THSarabunNew','B','THSarabunNew.php');

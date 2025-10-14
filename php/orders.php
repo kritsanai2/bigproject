@@ -241,8 +241,8 @@ $customers = $conn->query("SELECT customer_id AS id, full_name AS name FROM cust
     <a href="index.php"><i class="fas fa-home"></i>&nbsp; <span>หน้าหลัก</span></a>
     <a href="orders.php" class="active"><i class="fas fa-shopping-cart"></i>&nbsp; <span>คำสั่งซื้อ</span></a>
     <a href="stock.php"><i class="fas fa-warehouse"></i>&nbsp; <span>จัดการสต็อก</span></a>
-    <a href="transactions.php"><i class="fas fa-money-bill-wave"></i>&nbsp; <span>รายรับ-รายจ่าย</span></a>
-    <a href="orders_dashboard.php"><i class="fas fa-chart-line"></i>&nbsp; <span>รายงานการขาย</span></a>
+    <a href="transactions.php"><i class="fas fa-money-bill-wave"></i>&nbsp; <span>จัดการธุรกรรม</span></a>
+    <a href="orders_dashboard.php"><i class="fas fa-chart-line"></i>&nbsp; <span>จัดการรายงาน</span></a>
 </div>
 
 <div class="content" id="content">

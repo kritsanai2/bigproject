@@ -165,7 +165,7 @@ try {
         }
     }
 
-    // 5. ตั้งค่าและส่งอีเมล
+    // 5. ตั้งค่าและส่งอีเมล  สร้างอ็อบเจกต์ของคลาส PHPMailer
     $mail = new PHPMailer(true);
     $mail->CharSet = 'UTF-8';
     // ตั้งค่าการส่งผ่าน SMTP ของ Gmail
@@ -181,8 +181,8 @@ try {
     $mail->setFrom($mail->Username, 'รายงานคลังสินค้า');
     $mail->addAddress($recipient_email);
     $mail->isHTML(true);
-    $mail->Subject = $report_title; // ใช้หัวข้อรายงานเป็น Subject
-    $mail->Body    = "รายงานสต็อกที่คุณร้องขอได้แนบมากับอีเมลนี้แล้ว";
+    $mail->Subject = $report_title; // ใช้หัวข้อรายงานเป็น สร้างหัวเรื่อง (Subject) ของอีเมล
+    $mail->Body    = "รายงานสต็อกที่คุณร้องขอได้แนบมากับอีเมลนี้แล้ว";  //
     $mail->AltBody = "รายงานสต็อกได้แนบมากับอีเมลนี้แล้ว";
 
     // ตรวจสอบว่ามีไฟล์ให้แนบหรือไม่

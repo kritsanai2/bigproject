@@ -1,7 +1,7 @@
 <?php
 require_once 'db.php';
 
-// ฟังก์ชันช่วย
+// แปลประเภทและเดือนเป็นภาษาไทย
 function thai_type_text($type) { 
     return strtolower($type) == 'import' ? 'รับเข้า' : 'จ่ายออก'; 
 }
@@ -10,7 +10,7 @@ function thai_month($month) {
     return $months[(int)$month] ?? '';
 }
 
-// 1. รับค่าตัวกรองจาก URL (เหมือนใน dashboard)
+// 1. รับค่าตัวกรองจาก URL 
 $type_filter = $_GET['type'] ?? ''; 
 $month_filter = isset($_GET['month']) ? intval($_GET['month']) : 0; 
 $filter_year = isset($_GET['year']) ? intval($_GET['year']) : 0;
@@ -32,6 +32,7 @@ $where_clauses = [];
 $params = [];
 $types = '';
 
+//ระบุเงื่อนไขในการส่งออก
 if ($type_filter) { $where_clauses[] = "s.stock_type = ?"; $params[] = $type_filter; $types .= 's'; }
 if ($month_filter > 0) { $where_clauses[] = "MONTH(s.stock_date) = ?"; $params[] = $month_filter; $types .= 'i'; }
 if ($filter_year > 0) { $where_clauses[] = "YEAR(s.stock_date) = ?"; $params[] = $filter_year; $types .= 'i'; }
@@ -63,7 +64,7 @@ foreach ($rows as $row) {
 
 // 4. สร้างและส่งออกไฟล์ CSV
 $filename = "stock_report_" . date('Ymd') . ".csv";
-
+//แปลงเป็นภาษาไทย
 header('Content-Type: text/csv; charset=utf-8'); 
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 echo "\xEF\xBB\xBF"; 
